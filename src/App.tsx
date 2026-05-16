@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 const WEEKDAY_NAMES = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+const MAX_EVENTS_IN_CELL = 2;
 
 type CalendarDay = {
   date: Date;
@@ -9,10 +10,24 @@ type CalendarDay = {
   isToday: boolean;
 };
 
+type Event = {
+  id: string;
+  title: string;
+  date: string;
+  color: string;
+};
+
 const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&
   a.getDate() === b.getDate();
+
+const formatDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const createMonthGrid = (baseDate: Date): CalendarDay[] => {
   const year = baseDate.getFullYear();
@@ -47,9 +62,47 @@ function App() {
   const [currentMonth, setCurrentMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState(today);
 
+  const sampleEvents = useMemo<Event[]>(() => {
+    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const laterInMonth = new Date(today.getFullYear(), today.getMonth(), Math.min(today.getDate() + 3, 28));
+    const anotherDay = new Date(today.getFullYear(), today.getMonth(), Math.min(today.getDate() + 7, 28));
+
+    return [
+      {
+        id: 'event-1',
+        title: '오늘 회고 정리',
+        date: formatDateKey(todayDate),
+        color: '#3b82f6',
+      },
+      {
+        id: 'event-2',
+        title: '팀 주간 미팅',
+        date: formatDateKey(laterInMonth),
+        color: '#8b5cf6',
+      },
+      {
+        id: 'event-3',
+        title: '운동 기록 점검',
+        date: formatDateKey(anotherDay),
+        color: '#0ea5a4',
+      },
+    ];
+  }, [today]);
+
+  const eventsByDate = useMemo(() => {
+    return sampleEvents.reduce<Record<string, Event[]>>((acc, event) => {
+      if (!acc[event.date]) {
+        acc[event.date] = [];
+      }
+      acc[event.date].push(event);
+      return acc;
+    }, {});
+  }, [sampleEvents]);
+
   const monthCells = useMemo(() => createMonthGrid(currentMonth), [currentMonth]);
 
   const monthTitle = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
+  const selectedDateEvents = eventsByDate[formatDateKey(selectedDate)] ?? [];
 
   const goPrevMonth = () => {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -89,6 +142,9 @@ function App() {
 
             {monthCells.map((cell) => {
               const selected = isSameDay(cell.date, selectedDate);
+              const cellEvents = eventsByDate[formatDateKey(cell.date)] ?? [];
+              const visibleEvents = cellEvents.slice(0, MAX_EVENTS_IN_CELL);
+              const hiddenEventCount = Math.max(cellEvents.length - visibleEvents.length, 0);
 
               return (
                 <button
@@ -106,8 +162,22 @@ function App() {
                   aria-pressed={selected}
                   aria-label={formatDateKorean(cell.date)}
                 >
-                  <span className="date-number">{cell.date.getDate()}</span>
-                  {cell.isToday && <span className="badge">Today</span>}
+                  <div className="day-cell-top-row">
+                    <span className="date-number">{cell.date.getDate()}</span>
+                    {cell.isToday && <span className="badge">Today</span>}
+                  </div>
+                  <div className="day-events" aria-hidden="true">
+                    {visibleEvents.map((event) => (
+                      <span
+                        key={event.id}
+                        className="event-pill"
+                        style={{ ['--event-pill-color' as any]: event.color }}
+                      >
+                        {event.title}
+                      </span>
+                    ))}
+                    {hiddenEventCount > 0 && <span className="event-more">+{hiddenEventCount}개</span>}
+                  </div>
                 </button>
               );
             })}
@@ -117,9 +187,20 @@ function App() {
         <aside className="selected-day-panel" aria-live="polite" aria-label="선택한 날짜 요약">
           <p className="panel-label">선택한 날짜</p>
           <h2 className="panel-date">{formatSelectedDate(selectedDate)}</h2>
-          <div className="panel-empty-state">
-            <p>아직 일정 없음</p>
-          </div>
+          {selectedDateEvents.length === 0 ? (
+            <div className="panel-empty-state">
+              <p>아직 일정 없음</p>
+            </div>
+          ) : (
+            <ul className="panel-event-list" aria-label="선택 날짜 일정 목록">
+              {selectedDateEvents.map((event) => (
+                <li key={event.id}>
+                  <span className="panel-event-dot" style={{ backgroundColor: event.color }} aria-hidden="true" />
+                  <span>{event.title}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </aside>
       </main>
     </div>
