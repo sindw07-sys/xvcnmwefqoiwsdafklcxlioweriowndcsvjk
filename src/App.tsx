@@ -38,7 +38,9 @@ const createMonthGrid = (baseDate: Date): CalendarDay[] => {
   return cells;
 };
 
-const formatSelectedDate = (date: Date) => `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${WEEKDAY_NAMES[date.getDay()]}`;
+const formatDateKorean = (date: Date) => `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
+
+const formatSelectedDate = (date: Date) => `${formatDateKorean(date)} ${WEEKDAY_NAMES[date.getDay()]}`;
 
 function App() {
   const today = new Date();
@@ -47,7 +49,7 @@ function App() {
 
   const monthCells = useMemo(() => createMonthGrid(currentMonth), [currentMonth]);
 
-  const title = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
+  const monthTitle = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
 
   const goPrevMonth = () => {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -72,7 +74,7 @@ function App() {
         </div>
         <div className="month-controls" aria-label="월 이동 컨트롤">
           <button type="button" onClick={goPrevMonth} aria-label="이전 달" className="icon-button">◀</button>
-          <p className="month-title" aria-live="polite">{title}</p>
+          <p className="month-title" aria-live="polite" aria-label="현재 표시 중인 월">{monthTitle}</p>
           <button type="button" onClick={goNextMonth} aria-label="다음 달" className="icon-button">▶</button>
           <button type="button" onClick={goToday} className="today-button">오늘</button>
         </div>
@@ -102,7 +104,7 @@ function App() {
                     .filter(Boolean)
                     .join(' ')}
                   aria-pressed={selected}
-                  aria-label={`${cell.date.getFullYear()}년 ${cell.date.getMonth() + 1}월 ${cell.date.getDate()}일`}
+                  aria-label={formatDateKorean(cell.date)}
                 >
                   <span className="date-number">{cell.date.getDate()}</span>
                   {cell.isToday && <span className="badge">Today</span>}
