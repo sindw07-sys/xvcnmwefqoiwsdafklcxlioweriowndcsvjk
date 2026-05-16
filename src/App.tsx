@@ -1,0 +1,108 @@
+import { useMemo, useState } from 'react';
+
+const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+
+type CalendarDay = {
+  date: Date;
+  inCurrentMonth: boolean;
+  isToday: boolean;
+};
+
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+const createMonthGrid = (baseDate: Date): CalendarDay[] => {
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const start = new Date(firstDay);
+  start.setDate(firstDay.getDate() - firstDay.getDay());
+
+  const today = new Date();
+  const cells: CalendarDay[] = [];
+
+  for (let i = 0; i < 42; i += 1) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + i);
+
+    cells.push({
+      date,
+      inCurrentMonth: date.getMonth() === month,
+      isToday: isSameDay(date, today),
+    });
+  }
+
+  return cells;
+};
+
+function App() {
+  const today = new Date();
+  const [currentMonth, setCurrentMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [selectedDate, setSelectedDate] = useState(today);
+
+  const monthCells = useMemo(() => createMonthGrid(currentMonth), [currentMonth]);
+
+  const title = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
+
+  const goPrevMonth = () => {
+    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const goNextMonth = () => {
+    setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const goToday = () => {
+    const now = new Date();
+    setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+    setSelectedDate(now);
+  };
+
+  return (
+    <div className="app-shell">
+      <header className="calendar-header">
+        <h1>UpLog</h1>
+        <div className="month-controls" aria-label="월 이동 컨트롤">
+          <button type="button" onClick={goPrevMonth} aria-label="이전 달">◀</button>
+          <p className="month-title" aria-live="polite">{title}</p>
+          <button type="button" onClick={goNextMonth} aria-label="다음 달">▶</button>
+          <button type="button" onClick={goToday} className="today-button">오늘</button>
+        </div>
+      </header>
+
+      <main className="calendar-grid" aria-label="월간 캘린더">
+        {DAY_LABELS.map((label) => (
+          <div key={label} className="day-label">{label}</div>
+        ))}
+
+        {monthCells.map((cell) => {
+          const selected = isSameDay(cell.date, selectedDate);
+
+          return (
+            <button
+              key={cell.date.toISOString()}
+              type="button"
+              onClick={() => setSelectedDate(cell.date)}
+              className={[
+                'day-cell',
+                cell.inCurrentMonth ? '' : 'muted',
+                cell.isToday ? 'today' : '',
+                selected ? 'selected' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              aria-pressed={selected}
+              aria-label={`${cell.date.getFullYear()}년 ${cell.date.getMonth() + 1}월 ${cell.date.getDate()}일`}
+            >
+              <span>{cell.date.getDate()}</span>
+            </button>
+          );
+        })}
+      </main>
+    </div>
+  );
+}
+
+export default App;
