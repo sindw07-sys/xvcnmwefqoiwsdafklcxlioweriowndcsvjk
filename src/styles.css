@@ -1,7 +1,7 @@
 :root {
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-  color: #111827;
-  background: #f3f5f9;
+  color: #101828;
+  background: linear-gradient(180deg, #f4f7ff 0%, #eef3fb 100%);
 }
 
 * {
@@ -15,16 +15,17 @@ body {
 
 #root {
   min-height: 100vh;
-  padding: 24px;
+  padding: clamp(16px, 3vw, 32px);
 }
 
 .app-shell {
-  max-width: 960px;
+  max-width: 1080px;
   margin: 0 auto;
-  background: #ffffff;
-  border-radius: 18px;
-  padding: 20px;
-  box-shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+  border: 1px solid #e5eaf3;
+  border-radius: 24px;
+  padding: clamp(16px, 2.5vw, 28px);
+  box-shadow: 0 12px 36px rgba(16, 24, 40, 0.08);
 }
 
 .calendar-header {
@@ -37,37 +38,58 @@ body {
 
 h1 {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: clamp(1.35rem, 1.1rem + 1vw, 1.8rem);
+  letter-spacing: -0.02em;
+}
+
+.brand-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brand-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
 }
 
 .month-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 16px;
+  background: #f8faff;
+  border: 1px solid #e3e8f4;
 }
 
 .month-title {
   min-width: 120px;
   margin: 0;
   text-align: center;
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-size: clamp(1rem, 0.95rem + 0.4vw, 1.2rem);
+  font-weight: 700;
+  color: #1e293b;
 }
 
 button {
   border: 1px solid #d0d7e2;
   background: #fff;
   color: #111827;
-  border-radius: 10px;
-  padding: 10px 14px;
-  min-height: 42px;
+  border-radius: 12px;
+  padding: 11px 14px;
+  min-height: 46px;
+  min-width: 46px;
   cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease, box-shadow 120ms ease;
 }
 
 button:hover {
-  background: #f4f7fb;
+  background: #f3f7ff;
   border-color: #b4c0d3;
+  box-shadow: 0 6px 16px rgba(71, 85, 105, 0.12);
 }
 
 button:active {
@@ -76,63 +98,119 @@ button:active {
 
 .today-button {
   background: #e9f2ff;
-  border-color: #b7d4ff;
+  border-color: #9dc6ff;
+  font-weight: 700;
+}
+
+.icon-button {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.calendar-card {
+  border-radius: 20px;
+  border: 1px solid #e6eaf3;
+  background: #ffffff;
+  padding: clamp(10px, 1.8vw, 18px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
+  gap: clamp(6px, 1.2vw, 12px);
 }
 
 .day-label {
   text-align: center;
   font-weight: 700;
   color: #4b5563;
-  padding: 8px 0;
+  padding: 10px 0;
+  font-size: 0.9rem;
 }
 
 .day-cell {
   aspect-ratio: 1 / 1;
   display: flex;
   align-items: flex-start;
-  justify-content: flex-start;
+  justify-content: space-between;
   font-size: 1rem;
-  font-weight: 600;
-  padding: 10px;
+  font-weight: 700;
+  padding: clamp(8px, 1.2vw, 12px);
+  background: #fcfdff;
+  border: 1px solid #e5eaf5;
+  border-radius: 14px;
+  text-align: left;
 }
 
 .day-cell.muted {
-  color: #9ca3af;
-  background: #fafbfc;
+  color: #98a2b3;
+  background: #f7f9fd;
 }
 
 .day-cell.today {
   border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
+  background: #eef5ff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .day-cell.selected {
+  background: linear-gradient(180deg, #dbeafe 0%, #cfe5ff 100%);
+  border-color: #2f6fed;
+  box-shadow: 0 8px 18px rgba(47, 111, 237, 0.24);
+}
+
+.date-number {
+  line-height: 1.2;
+}
+
+.badge {
+  align-self: flex-end;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #1d4ed8;
   background: #dbeafe;
-  border-color: #60a5fa;
+  border: 1px solid #bfdbfe;
+  padding: 2px 6px;
+  border-radius: 999px;
 }
 
 @media (max-width: 760px) {
-  #root {
-    padding: 12px;
-  }
-
-  .app-shell {
-    padding: 14px;
-  }
-
   .calendar-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: 12px;
   }
 
   .month-controls {
     width: 100%;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 50px 1fr 50px auto;
+    align-items: center;
+  }
+
+  .day-cell {
+    min-height: 64px;
+  }
+}
+
+@media (max-width: 480px) {
+  .month-controls {
+    grid-template-columns: 46px 1fr 46px;
+    gap: 8px;
+  }
+
+  .today-button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .day-label {
+    font-size: 0.78rem;
+  }
+
+  .badge {
+    font-size: 0.62rem;
   }
 }

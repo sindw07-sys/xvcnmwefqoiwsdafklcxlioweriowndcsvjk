@@ -63,16 +63,20 @@ function App() {
   return (
     <div className="app-shell">
       <header className="calendar-header">
-        <h1>UpLog</h1>
+        <div className="brand-block">
+          <h1>UpLog</h1>
+          <p className="brand-subtitle">Monthly Calendar</p>
+        </div>
         <div className="month-controls" aria-label="월 이동 컨트롤">
-          <button type="button" onClick={goPrevMonth} aria-label="이전 달">◀</button>
+          <button type="button" onClick={goPrevMonth} aria-label="이전 달" className="icon-button">◀</button>
           <p className="month-title" aria-live="polite">{title}</p>
-          <button type="button" onClick={goNextMonth} aria-label="다음 달">▶</button>
+          <button type="button" onClick={goNextMonth} aria-label="다음 달" className="icon-button">▶</button>
           <button type="button" onClick={goToday} className="today-button">오늘</button>
         </div>
       </header>
 
-      <main className="calendar-grid" aria-label="월간 캘린더">
+      <main className="calendar-card" aria-label="월간 캘린더">
+        <div className="calendar-grid">
         {DAY_LABELS.map((label) => (
           <div key={label} className="day-label">{label}</div>
         ))}
@@ -96,10 +100,12 @@ function App() {
               aria-pressed={selected}
               aria-label={`${cell.date.getFullYear()}년 ${cell.date.getMonth() + 1}월 ${cell.date.getDate()}일`}
             >
-              <span>{cell.date.getDate()}</span>
+              <span className="date-number">{cell.date.getDate()}</span>
+              {cell.isToday && <span className="badge">Today</span>}
             </button>
           );
         })}
+        </div>
       </main>
     </div>
   );
