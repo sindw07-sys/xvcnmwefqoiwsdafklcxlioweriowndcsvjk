@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+const WEEKDAY_NAMES = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 
 type CalendarDay = {
   date: Date;
@@ -36,6 +37,8 @@ const createMonthGrid = (baseDate: Date): CalendarDay[] => {
 
   return cells;
 };
+
+const formatSelectedDate = (date: Date) => `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${WEEKDAY_NAMES[date.getDay()]}`;
 
 function App() {
   const today = new Date();
@@ -75,37 +78,47 @@ function App() {
         </div>
       </header>
 
-      <main className="calendar-card" aria-label="월간 캘린더">
-        <div className="calendar-grid">
-        {DAY_LABELS.map((label) => (
-          <div key={label} className="day-label">{label}</div>
-        ))}
+      <main className="calendar-layout" aria-label="월간 캘린더와 선택 날짜 요약">
+        <section className="calendar-card" aria-label="월간 캘린더">
+          <div className="calendar-grid">
+            {DAY_LABELS.map((label) => (
+              <div key={label} className="day-label">{label}</div>
+            ))}
 
-        {monthCells.map((cell) => {
-          const selected = isSameDay(cell.date, selectedDate);
+            {monthCells.map((cell) => {
+              const selected = isSameDay(cell.date, selectedDate);
 
-          return (
-            <button
-              key={cell.date.toISOString()}
-              type="button"
-              onClick={() => setSelectedDate(cell.date)}
-              className={[
-                'day-cell',
-                cell.inCurrentMonth ? '' : 'muted',
-                cell.isToday ? 'today' : '',
-                selected ? 'selected' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              aria-pressed={selected}
-              aria-label={`${cell.date.getFullYear()}년 ${cell.date.getMonth() + 1}월 ${cell.date.getDate()}일`}
-            >
-              <span className="date-number">{cell.date.getDate()}</span>
-              {cell.isToday && <span className="badge">Today</span>}
-            </button>
-          );
-        })}
-        </div>
+              return (
+                <button
+                  key={cell.date.toISOString()}
+                  type="button"
+                  onClick={() => setSelectedDate(cell.date)}
+                  className={[
+                    'day-cell',
+                    cell.inCurrentMonth ? '' : 'muted',
+                    cell.isToday ? 'today' : '',
+                    selected ? 'selected' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  aria-pressed={selected}
+                  aria-label={`${cell.date.getFullYear()}년 ${cell.date.getMonth() + 1}월 ${cell.date.getDate()}일`}
+                >
+                  <span className="date-number">{cell.date.getDate()}</span>
+                  {cell.isToday && <span className="badge">Today</span>}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <aside className="selected-day-panel" aria-live="polite" aria-label="선택한 날짜 요약">
+          <p className="panel-label">선택한 날짜</p>
+          <h2 className="panel-date">{formatSelectedDate(selectedDate)}</h2>
+          <div className="panel-empty-state">
+            <p>아직 일정 없음</p>
+          </div>
+        </aside>
       </main>
     </div>
   );
