@@ -107,6 +107,13 @@ button:active {
   font-weight: 700;
 }
 
+.calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: clamp(14px, 2vw, 20px);
+  align-items: start;
+}
+
 .calendar-card {
   border-radius: 20px;
   border: 1px solid #e6eaf3;
@@ -176,6 +183,51 @@ button:active {
   border-radius: 999px;
 }
 
+.selected-day-panel {
+  border-radius: 20px;
+  background: linear-gradient(180deg, #fcfdff 0%, #f4f8ff 100%);
+  border: 1px solid #e4eaf6;
+  box-shadow: 0 10px 24px rgba(30, 41, 59, 0.08);
+  padding: clamp(16px, 2vw, 22px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel-label {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.panel-date {
+  margin: 0;
+  font-size: clamp(1.1rem, 0.95rem + 0.5vw, 1.35rem);
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  color: #0f172a;
+}
+
+.panel-empty-state {
+  border-radius: 14px;
+  background: #ffffff;
+  color: #334155;
+  padding: 14px 16px;
+  box-shadow: inset 0 0 0 1px #e7edf8;
+}
+
+.panel-empty-state p {
+  margin: 0;
+  font-weight: 600;
+}
+
+@media (max-width: 920px) {
+  .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 760px) {
   .calendar-header {
     flex-direction: column;
@@ -186,7 +238,7 @@ button:active {
   .month-controls {
     width: 100%;
     display: grid;
-    grid-template-columns: 50px 1fr 50px auto;
+    grid-template-columns: 50px minmax(0, 1fr) 50px auto;
     align-items: center;
   }
 
@@ -197,7 +249,7 @@ button:active {
 
 @media (max-width: 480px) {
   .month-controls {
-    grid-template-columns: 46px 1fr 46px;
+    grid-template-columns: 46px minmax(0, 1fr) 46px;
     gap: 8px;
   }
 
