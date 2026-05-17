@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 const WEEKDAY_NAMES = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
@@ -29,6 +29,12 @@ type Event = {
 type LunarDate = {
   month: number;
   day: number;
+};
+
+type BackupPayload = {
+  version: number;
+  exportedAt: string;
+  events: Event[];
 };
 
 const isSameDay = (a: Date, b: Date) =>
@@ -180,6 +186,7 @@ function App() {
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventColor, setNewEventColor] = useState(EVENT_COLOR_PRESETS[0]);
   const [newEventType, setNewEventType] = useState<EventRepeatType>('none');
+  const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const initialEvents = useMemo<Event[]>(() => buildInitialEvents(today), [today]);
 
@@ -287,6 +294,74 @@ function App() {
     closeAddForm();
   };
 
+
+  const handleExportBackup = () => {
+    const backupData: BackupPayload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      events,
+    };
+
+    const jsonText = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonText], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    const todayKey = formatDateKey(new Date());
+
+    anchor.href = url;
+    anchor.download = `uplog-backup-${todayKey}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleClickRestoreButton = () => {
+    restoreInputRef.current?.click();
+  };
+
+  const handleImportBackup = async (e: FormEvent<HTMLInputElement>) => {
+    const target = e.currentTarget;
+    const file = target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const rawText = await file.text();
+      const parsed = JSON.parse(rawText) as Partial<BackupPayload>;
+
+      if (!parsed || !Array.isArray(parsed.events)) {
+        window.alert('백업 파일 형식이 올바르지 않습니다. events 배열이 필요합니다.');
+        target.value = '';
+        return;
+      }
+
+      const normalizedEvents = parsed.events.map(normalizeEvent).filter((item): item is Event => item !== null);
+
+      if (normalizedEvents.length !== parsed.events.length) {
+        window.alert('일부 일정 데이터 형식이 올바르지 않아 복원할 수 없습니다.');
+        target.value = '';
+        return;
+      }
+
+      const shouldRestore = window.confirm('백업을 가져오면 현재 일정이 백업 내용으로 덮어써집니다. 복원할까요?');
+      if (!shouldRestore) {
+        target.value = '';
+        return;
+      }
+
+      setEvents(normalizedEvents);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedEvents));
+      window.alert('백업 가져오기가 완료되었습니다.');
+    } catch {
+      window.alert('백업 파일을 읽을 수 없습니다. JSON 파일인지 확인해 주세요.');
+    } finally {
+      target.value = '';
+    }
+  };
+
   const handleDeleteEvent = (eventId: string) => {
     const shouldDelete = window.confirm('이 일정을 삭제할까요?');
     if (!shouldDelete) {
@@ -374,6 +449,24 @@ function App() {
           <button type="button" className="panel-add-button" onClick={openAddForm}>
             일정 추가
           </button>
+
+          <div className="panel-backup-actions" aria-label="백업 및 복구">
+            <button type="button" className="panel-utility-button" onClick={handleExportBackup}>
+              백업 내보내기
+            </button>
+            <button type="button" className="panel-utility-button" onClick={handleClickRestoreButton}>
+              백업 가져오기
+            </button>
+            <input
+              ref={restoreInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="sr-only-file-input"
+              onChange={handleImportBackup}
+              aria-label="백업 파일 선택"
+              tabIndex={-1}
+            />
+          </div>
 
           {isAddFormOpen && (
             <form className="add-event-form" onSubmit={handleAddEvent}>

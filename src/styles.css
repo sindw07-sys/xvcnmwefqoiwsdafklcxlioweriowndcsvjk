@@ -518,3 +518,42 @@ button:active {
   color: #b45309;
   font-weight: 600;
 }
+
+
+.panel-backup-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.panel-utility-button {
+  min-height: 42px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border-color: #d5deeb;
+  color: #475569;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.panel-utility-button:hover {
+  background: #f1f5f9;
+  border-color: #c5d1e0;
+}
+
+.sr-only-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+@media (max-width: 480px) {
+  .panel-backup-actions {
+    grid-template-columns: 1fr;
+  }
+}
