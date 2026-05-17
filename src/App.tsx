@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 const WEEKDAY_NAMES = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
-const MAX_EVENTS_IN_CELL = 2;
+const MAX_EVENT_DOTS_IN_CELL = 4;
 
 type CalendarDay = {
   date: Date;
@@ -143,7 +143,7 @@ function App() {
             {monthCells.map((cell) => {
               const selected = isSameDay(cell.date, selectedDate);
               const cellEvents = eventsByDate[formatDateKey(cell.date)] ?? [];
-              const visibleEvents = cellEvents.slice(0, MAX_EVENTS_IN_CELL);
+              const visibleEvents = cellEvents.slice(0, MAX_EVENT_DOTS_IN_CELL);
               const hiddenEventCount = Math.max(cellEvents.length - visibleEvents.length, 0);
 
               return (
@@ -167,16 +167,16 @@ function App() {
                     {cell.isToday && <span className="badge">Today</span>}
                   </div>
                   <div className="day-events" aria-hidden="true">
-                    {visibleEvents.map((event) => (
-                      <span
-                        key={event.id}
-                        className="event-pill"
-                        style={{ ['--event-pill-color' as any]: event.color }}
-                      >
-                        {event.title}
-                      </span>
-                    ))}
-                    {hiddenEventCount > 0 && <span className="event-more">+{hiddenEventCount}개</span>}
+                    <div className="event-dots">
+                      {visibleEvents.map((event) => (
+                        <span
+                          key={event.id}
+                          className="event-dot"
+                          style={{ backgroundColor: event.color }}
+                        />
+                      ))}
+                    </div>
+                    {hiddenEventCount > 0 && <span className="event-more">+{hiddenEventCount}</span>}
                   </div>
                 </button>
               );

@@ -186,32 +186,34 @@ button:active {
 .day-events {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: auto;
   min-height: 0;
 }
 
-.event-pill {
-  --event-pill-color: #64748b;
-  display: block;
-  width: 100%;
-  font-size: 0.68rem;
-  font-weight: 700;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 3px 8px;
+.event-dots {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 8px;
+}
+
+.event-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
-  color: #1f2937;
-  background: color-mix(in srgb, var(--event-pill-color) 18%, #ffffff);
-  border: 1px solid color-mix(in srgb, var(--event-pill-color) 35%, #dbe5f2);
+  flex: 0 0 auto;
+  background: #94a3b8;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
 }
 
 .event-more {
   font-size: 0.68rem;
   font-weight: 700;
-  color: #475569;
-  padding-left: 2px;
+  color: #64748b;
+  line-height: 1;
 }
 
 .badge {
