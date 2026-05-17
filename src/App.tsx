@@ -186,6 +186,10 @@ function App() {
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventColor, setNewEventColor] = useState(EVENT_COLOR_PRESETS[0]);
   const [newEventType, setNewEventType] = useState<EventRepeatType>('none');
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [editingEventTitle, setEditingEventTitle] = useState('');
+  const [editingEventColor, setEditingEventColor] = useState(EVENT_COLOR_PRESETS[0]);
+  const [editingEventType, setEditingEventType] = useState<EventRepeatType>('none');
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const initialEvents = useMemo<Event[]>(() => buildInitialEvents(today), [today]);
@@ -371,6 +375,52 @@ function App() {
     setEvents((prev) => prev.filter((event) => event.id !== eventId));
   };
 
+  const startEditEvent = (event: Event) => {
+    setIsAddFormOpen(false);
+    setEditingEventId(event.id);
+    setEditingEventTitle(event.title);
+    setEditingEventColor(event.color);
+    setEditingEventType(event.repeatType);
+  };
+
+  const cancelEditEvent = () => {
+    setEditingEventId(null);
+    setEditingEventTitle('');
+    setEditingEventColor(EVENT_COLOR_PRESETS[0]);
+    setEditingEventType('none');
+  };
+
+  const handleEditEvent = (e: FormEvent, baseEvent: Event) => {
+    e.preventDefault();
+    const trimmedTitle = editingEventTitle.trim();
+    if (!trimmedTitle) {
+      return;
+    }
+
+    if (editingEventType === 'lunar-yearly' && !selectedLunarDate) {
+      return;
+    }
+
+    setEvents((prev) =>
+      prev.map((event) => {
+        if (event.id !== baseEvent.id) {
+          return event;
+        }
+
+        return {
+          ...event,
+          title: trimmedTitle,
+          color: editingEventColor,
+          calendarType: editingEventType === 'lunar-yearly' ? 'lunar' : 'solar',
+          repeatType: editingEventType,
+          lunarMonth: editingEventType === 'lunar-yearly' ? selectedLunarDate?.month ?? event.lunarMonth : undefined,
+          lunarDay: editingEventType === 'lunar-yearly' ? selectedLunarDate?.day ?? event.lunarDay : undefined,
+        };
+      }),
+    );
+    cancelEditEvent();
+  };
+
   return (
     <div className="app-shell">
       <header className="calendar-header">
@@ -532,11 +582,72 @@ function App() {
                 <li key={event.id}>
                   <span className="panel-event-dot" style={{ backgroundColor: event.color }} aria-hidden="true" />
                   <div className="panel-event-content">
-                    <span className="panel-event-title">{event.title}</span>
-                    {event.repeatType === 'lunar-yearly' && event.lunarMonth && event.lunarDay && (
-                      <span className="panel-event-meta">음력 {event.lunarMonth}.{event.lunarDay} 반복</span>
+                    {editingEventId === event.id ? (
+                      <form className="add-event-form panel-edit-form" onSubmit={(e) => handleEditEvent(e, event)}>
+                        <label htmlFor={`edit-event-title-${event.id}`} className="form-label">일정 제목</label>
+                        <input
+                          id={`edit-event-title-${event.id}`}
+                          type="text"
+                          className="form-input"
+                          value={editingEventTitle}
+                          onChange={(e) => setEditingEventTitle(e.target.value)}
+                          maxLength={40}
+                          required
+                        />
+
+                        <label htmlFor={`edit-event-type-${event.id}`} className="form-label">일정 종류</label>
+                        <select
+                          id={`edit-event-type-${event.id}`}
+                          className="form-input"
+                          value={editingEventType}
+                          onChange={(e) => setEditingEventType(e.target.value as EventRepeatType)}
+                        >
+                          <option value="none">양력 일정</option>
+                          <option value="lunar-yearly" disabled={!canAddLunarRepeat}>매년 음력 반복</option>
+                        </select>
+
+                        {editingEventType === 'lunar-yearly' && selectedLunarDate && (
+                          <p className="form-helper">반복 기준: 음력 {selectedLunarDate.month}.{selectedLunarDate.day}</p>
+                        )}
+
+                        <p className="form-label">색상 선택</p>
+                        <div className="color-options" role="radiogroup" aria-label="일정 색상 수정">
+                          {EVENT_COLOR_PRESETS.map((color) => (
+                            <button
+                              key={color}
+                              type="button"
+                              className={`color-option ${editingEventColor === color ? 'active' : ''}`}
+                              style={{ backgroundColor: color }}
+                              onClick={() => setEditingEventColor(color)}
+                              aria-label={`색상 ${color}`}
+                              aria-pressed={editingEventColor === color}
+                            />
+                          ))}
+                        </div>
+
+                        <div className="form-actions">
+                          <button type="button" className="form-secondary" onClick={cancelEditEvent}>취소</button>
+                          <button type="submit" className="form-primary" disabled={editingEventType === 'lunar-yearly' && !canAddLunarRepeat}>저장</button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <span className="panel-event-title">{event.title}</span>
+                        {event.repeatType === 'lunar-yearly' && event.lunarMonth && event.lunarDay && (
+                          <span className="panel-event-meta">음력 {event.lunarMonth}.{event.lunarDay} 반복</span>
+                        )}
+                      </>
                     )}
                   </div>
+                  <button
+                    type="button"
+                    className="panel-edit-button"
+                    onClick={() => startEditEvent(event)}
+                    aria-label={`${event.title} 일정 수정`}
+                    disabled={editingEventId === event.id}
+                  >
+                    수정
+                  </button>
                   <button
                     type="button"
                     className="panel-delete-button"

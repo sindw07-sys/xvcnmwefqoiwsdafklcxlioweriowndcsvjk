@@ -315,7 +315,7 @@ button:active {
 
 .panel-event-list li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   border-radius: 12px;
   background: var(--surface-white);
@@ -348,6 +348,31 @@ button:active {
   height: 10px;
   border-radius: 999px;
   flex: 0 0 auto;
+}
+
+.panel-edit-form {
+  width: 100%;
+  margin-top: 2px;
+}
+
+.panel-edit-button {
+  min-width: 58px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border-color: #d6deeb;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.panel-edit-button:hover {
+  border-color: #c8d4e5;
+  background: #f8fafc;
+  color: #334155;
+  box-shadow: 0 4px 12px rgba(100, 116, 139, 0.15);
 }
 
 .panel-delete-button {
