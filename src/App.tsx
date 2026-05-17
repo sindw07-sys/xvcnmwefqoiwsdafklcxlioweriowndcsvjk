@@ -87,7 +87,7 @@ const getLunarDateText = (date: Date, withLabel = false): string => {
     return `음력 ${month}월 ${day}일`;
   }
 
-  return `음 ${month}.${day}`;
+  return `${month}.${day}`;
 };
 
 
