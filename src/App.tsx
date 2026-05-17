@@ -4,6 +4,7 @@ const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 const WEEKDAY_NAMES = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 const MAX_EVENT_DOTS_IN_CELL = 4;
 const STORAGE_KEY = 'uplog-events';
+const CATEGORY_STORAGE_KEY = 'uplog-categories';
 const EVENT_COLOR_PRESETS = ['#3b82f6', '#8b5cf6', '#0ea5a4', '#f97316', '#ec4899'];
 
 type CalendarDay = {
@@ -25,6 +26,13 @@ type Event = {
   repeatType: EventRepeatType;
   lunarMonth?: number;
   lunarDay?: number;
+  categoryId?: string;
+};
+
+type Category = {
+  id: string;
+  name: string;
+  color: string;
 };
 
 type LunarDate = {
@@ -36,6 +44,7 @@ type BackupPayload = {
   version: number;
   exportedAt: string;
   events: Event[];
+  categories?: Category[];
 };
 
 const isSameDay = (a: Date, b: Date) =>
@@ -134,6 +143,7 @@ const normalizeEvent = (item: unknown): Event | null => {
   const memo = typeof raw.memo === 'string' ? raw.memo : undefined;
   const lunarMonth = typeof raw.lunarMonth === 'number' ? raw.lunarMonth : undefined;
   const lunarDay = typeof raw.lunarDay === 'number' ? raw.lunarDay : undefined;
+  const categoryId = typeof raw.categoryId === 'string' ? raw.categoryId : undefined;
 
   return {
     id: raw.id,
@@ -145,8 +155,26 @@ const normalizeEvent = (item: unknown): Event | null => {
     repeatType,
     lunarMonth,
     lunarDay,
+    categoryId,
   };
 };
+
+const normalizeCategory = (item: unknown): Category | null => {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+  const raw = item as Partial<Category>;
+  if (typeof raw.id !== 'string' || typeof raw.name !== 'string' || typeof raw.color !== 'string') {
+    return null;
+  }
+  return { id: raw.id, name: raw.name, color: raw.color };
+};
+
+const DEFAULT_CATEGORIES: Category[] = [
+  { id: 'default-work', name: '업무', color: '#3b82f6' },
+  { id: 'default-life', name: '개인', color: '#8b5cf6' },
+  { id: 'default-health', name: '건강', color: '#0ea5a4' },
+];
 
 const buildInitialEvents = (now: Date): Event[] => {
   const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -190,11 +218,13 @@ function App() {
   const [newEventColor, setNewEventColor] = useState(EVENT_COLOR_PRESETS[0]);
   const [newEventMemo, setNewEventMemo] = useState('');
   const [newEventType, setNewEventType] = useState<EventRepeatType>('none');
+  const [newEventCategoryId, setNewEventCategoryId] = useState('');
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [editingEventTitle, setEditingEventTitle] = useState('');
   const [editingEventColor, setEditingEventColor] = useState(EVENT_COLOR_PRESETS[0]);
   const [editingEventMemo, setEditingEventMemo] = useState('');
   const [editingEventType, setEditingEventType] = useState<EventRepeatType>('none');
+  const [editingEventCategoryId, setEditingEventCategoryId] = useState('');
   const [activeMenuEventId, setActiveMenuEventId] = useState<string | null>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const actionMenuAreaRef = useRef<HTMLUListElement>(null);
@@ -219,10 +249,34 @@ function App() {
       return initialEvents;
     }
   });
+  const [categories, setCategories] = useState<Category[]>(() => {
+    const raw = localStorage.getItem(CATEGORY_STORAGE_KEY);
+    if (!raw) return DEFAULT_CATEGORIES;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return DEFAULT_CATEGORIES;
+      const normalized = parsed.map(normalizeCategory).filter((item): item is Category => item !== null);
+      return normalized.length > 0 ? normalized : DEFAULT_CATEGORIES;
+    } catch {
+      return DEFAULT_CATEGORIES;
+    }
+  });
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
   }, [events]);
+  useEffect(() => {
+    localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
+  }, [categories]);
+
+  const categoryById = useMemo(() => {
+    return categories.reduce<Record<string, Category>>((acc, category) => {
+      acc[category.id] = category;
+      return acc;
+    }, {});
+  }, [categories]);
+
+  const getEventColor = (event: Event) => categoryById[event.categoryId ?? '']?.color ?? event.color;
 
 
   useEffect(() => {
@@ -284,6 +338,7 @@ function App() {
     setNewEventColor(EVENT_COLOR_PRESETS[0]);
     setNewEventType('none');
     setNewEventMemo('');
+    setNewEventCategoryId('');
     setIsAddFormOpen(true);
   };
 
@@ -316,6 +371,7 @@ function App() {
       repeatType: newEventType,
       lunarMonth: newEventType === 'lunar-yearly' ? selectedLunarDate?.month : undefined,
       lunarDay: newEventType === 'lunar-yearly' ? selectedLunarDate?.day : undefined,
+      categoryId: newEventCategoryId || undefined,
     };
 
     setEvents((prev) => [...prev, createdEvent]);
@@ -328,6 +384,7 @@ function App() {
       version: 1,
       exportedAt: new Date().toISOString(),
       events,
+      categories,
     };
 
     const jsonText = JSON.stringify(backupData, null, 2);
@@ -359,20 +416,26 @@ function App() {
     try {
       const rawText = await file.text();
       const parsed = JSON.parse(rawText) as Partial<BackupPayload>;
+      const eventsSource = Array.isArray(parsed) ? parsed : parsed.events;
 
-      if (!parsed || !Array.isArray(parsed.events)) {
+      if (!eventsSource || !Array.isArray(eventsSource)) {
         window.alert('백업 파일 형식이 올바르지 않습니다. events 배열이 필요합니다.');
         target.value = '';
         return;
       }
 
-      const normalizedEvents = parsed.events.map(normalizeEvent).filter((item): item is Event => item !== null);
+      const normalizedEvents = eventsSource.map(normalizeEvent).filter((item): item is Event => item !== null);
 
-      if (normalizedEvents.length !== parsed.events.length) {
+      if (normalizedEvents.length !== eventsSource.length) {
         window.alert('일부 일정 데이터 형식이 올바르지 않아 복원할 수 없습니다.');
         target.value = '';
         return;
       }
+
+      const categorySource = Array.isArray(parsed) ? undefined : parsed.categories;
+      const normalizedCategories = Array.isArray(categorySource)
+        ? categorySource.map(normalizeCategory).filter((item): item is Category => item !== null)
+        : null;
 
       const shouldRestore = window.confirm('백업을 가져오면 현재 일정이 백업 내용으로 덮어써집니다. 복원할까요?');
       if (!shouldRestore) {
@@ -382,6 +445,11 @@ function App() {
 
       setEvents(normalizedEvents);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedEvents));
+      if (normalizedCategories) {
+        const nextCategories = normalizedCategories.length > 0 ? normalizedCategories : DEFAULT_CATEGORIES;
+        setCategories(nextCategories);
+        localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(nextCategories));
+      }
       window.alert('백업 가져오기가 완료되었습니다.');
     } catch {
       window.alert('백업 파일을 읽을 수 없습니다. JSON 파일인지 확인해 주세요.');
@@ -408,6 +476,7 @@ function App() {
     setEditingEventColor(event.color);
     setEditingEventMemo(event.memo ?? '');
     setEditingEventType(event.repeatType);
+    setEditingEventCategoryId(event.categoryId ?? '');
   };
 
   const cancelEditEvent = () => {
@@ -416,6 +485,7 @@ function App() {
     setEditingEventColor(EVENT_COLOR_PRESETS[0]);
     setEditingEventMemo('');
     setEditingEventType('none');
+    setEditingEventCategoryId('');
   };
 
   const handleEditEvent = (e: FormEvent, baseEvent: Event) => {
@@ -446,6 +516,7 @@ function App() {
           repeatType: editingEventType,
           lunarMonth: editingEventType === 'lunar-yearly' ? selectedLunarDate?.month ?? event.lunarMonth : undefined,
           lunarDay: editingEventType === 'lunar-yearly' ? selectedLunarDate?.day ?? event.lunarDay : undefined,
+          categoryId: editingEventCategoryId || undefined,
         };
       }),
     );
@@ -510,7 +581,7 @@ function App() {
                         <span
                           key={event.id}
                           className="event-dot"
-                          style={{ backgroundColor: event.color }}
+                          style={{ backgroundColor: getEventColor(event) }}
                         />
                       ))}
                       {hiddenEventCount > 0 && <span className="event-more">+{hiddenEventCount}</span>}
@@ -592,6 +663,19 @@ function App() {
                 <p className="form-warning">현재 브라우저에서는 음력 변환을 지원하지 않아 음력 반복 저장을 사용할 수 없습니다.</p>
               )}
 
+              <label htmlFor="new-event-category" className="form-label">카테고리</label>
+              <select
+                id="new-event-category"
+                className="form-input"
+                value={newEventCategoryId}
+                onChange={(e) => setNewEventCategoryId(e.target.value)}
+              >
+                <option value="">선택 안 함 (기존 색상 사용)</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>{category.name}</option>
+                ))}
+              </select>
+
               <p className="form-label">색상 선택</p>
               <div className="color-options" role="radiogroup" aria-label="일정 색상 선택">
                 {EVENT_COLOR_PRESETS.map((color) => (
@@ -625,7 +709,7 @@ function App() {
 
                 return (
                 <li key={event.id} className={`panel-event-item ${isEditing ? 'is-editing' : ''}`.trim()}>
-                  {!isEditing && <span className="panel-event-dot" style={{ backgroundColor: event.color }} aria-hidden="true" />}
+                  {!isEditing && <span className="panel-event-dot" style={{ backgroundColor: getEventColor(event) }} aria-hidden="true" />}
                   <div className="panel-event-content">
                     {isEditing ? (
                       <form className="add-event-form panel-edit-form" onSubmit={(e) => handleEditEvent(e, event)}>
@@ -665,6 +749,19 @@ function App() {
                           <p className="form-helper">반복 기준: 음력 {selectedLunarDate.month}.{selectedLunarDate.day}</p>
                         )}
 
+                        <label htmlFor={`edit-event-category-${event.id}`} className="form-label">카테고리</label>
+                        <select
+                          id={`edit-event-category-${event.id}`}
+                          className="form-input"
+                          value={editingEventCategoryId}
+                          onChange={(e) => setEditingEventCategoryId(e.target.value)}
+                        >
+                          <option value="">선택 안 함 (기존 색상 사용)</option>
+                          {categories.map((category) => (
+                            <option key={category.id} value={category.id}>{category.name}</option>
+                          ))}
+                        </select>
+
                         <p className="form-label">색상 선택</p>
                         <div className="color-options" role="radiogroup" aria-label="일정 색상 수정">
                           {EVENT_COLOR_PRESETS.map((color) => (
@@ -691,6 +788,9 @@ function App() {
                         {event.memo && <p className="panel-event-memo">{event.memo}</p>}
                         {event.repeatType === 'lunar-yearly' && event.lunarMonth && event.lunarDay && (
                           <span className="panel-event-meta">음력 {event.lunarMonth}.{event.lunarDay} 반복</span>
+                        )}
+                        {event.categoryId && categoryById[event.categoryId] && (
+                          <span className="panel-event-meta">{categoryById[event.categoryId].name}</span>
                         )}
                       </>
                     )}
