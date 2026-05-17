@@ -325,9 +325,22 @@ button:active {
   color: #1e293b;
 }
 
-.panel-event-title {
+.panel-event-content {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.panel-event-title {
+  min-width: 0;
+}
+
+.panel-event-meta {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 600;
 }
 
 .panel-event-dot {
@@ -490,4 +503,18 @@ button:active {
   background: #dbeafe;
   border-color: #a7c8ff;
   font-weight: 700;
+}
+
+.form-helper {
+  margin: -2px 0 0;
+  font-size: 0.76rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.form-warning {
+  margin: -2px 0 0;
+  font-size: 0.76rem;
+  color: #b45309;
+  font-weight: 600;
 }

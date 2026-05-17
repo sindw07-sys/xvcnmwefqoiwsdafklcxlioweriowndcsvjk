@@ -12,11 +12,23 @@ type CalendarDay = {
   isToday: boolean;
 };
 
+type EventCalendarType = 'solar' | 'lunar';
+type EventRepeatType = 'none' | 'lunar-yearly';
+
 type Event = {
   id: string;
   title: string;
   date: string;
   color: string;
+  calendarType: EventCalendarType;
+  repeatType: EventRepeatType;
+  lunarMonth?: number;
+  lunarDay?: number;
+};
+
+type LunarDate = {
+  month: number;
+  day: number;
 };
 
 const isSameDay = (a: Date, b: Date) =>
@@ -70,26 +82,62 @@ const chineseLunarFormatter = (() => {
   }
 })();
 
-const getLunarDateText = (date: Date, withLabel = false): string => {
+const getLunarDate = (date: Date): LunarDate | null => {
   if (!chineseLunarFormatter) {
-    return '';
+    return null;
   }
 
   const parts = chineseLunarFormatter.formatToParts(date);
-  const month = parts.find((part) => part.type === 'month')?.value;
-  const day = parts.find((part) => part.type === 'day')?.value;
+  const month = Number(parts.find((part) => part.type === 'month')?.value);
+  const day = Number(parts.find((part) => part.type === 'day')?.value);
 
-  if (!month || !day) {
+  if (!Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+
+  return { month, day };
+};
+
+const getLunarDateText = (date: Date, withLabel = false): string => {
+  const lunarDate = getLunarDate(date);
+  if (!lunarDate) {
     return '';
   }
 
   if (withLabel) {
-    return `음력 ${month}월 ${day}일`;
+    return `음력 ${lunarDate.month}월 ${lunarDate.day}일`;
   }
 
-  return `${month}.${day}`;
+  return `${lunarDate.month}.${lunarDate.day}`;
 };
 
+const normalizeEvent = (item: unknown): Event | null => {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+
+  const raw = item as Partial<Event>;
+
+  if (typeof raw.id !== 'string' || typeof raw.title !== 'string' || typeof raw.date !== 'string' || typeof raw.color !== 'string') {
+    return null;
+  }
+
+  const calendarType: EventCalendarType = raw.calendarType === 'lunar' ? 'lunar' : 'solar';
+  const repeatType: EventRepeatType = raw.repeatType === 'lunar-yearly' ? 'lunar-yearly' : 'none';
+  const lunarMonth = typeof raw.lunarMonth === 'number' ? raw.lunarMonth : undefined;
+  const lunarDay = typeof raw.lunarDay === 'number' ? raw.lunarDay : undefined;
+
+  return {
+    id: raw.id,
+    title: raw.title,
+    date: raw.date,
+    color: raw.color,
+    calendarType,
+    repeatType,
+    lunarMonth,
+    lunarDay,
+  };
+};
 
 const buildInitialEvents = (now: Date): Event[] => {
   const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -102,18 +150,24 @@ const buildInitialEvents = (now: Date): Event[] => {
       title: '오늘 회고 정리',
       date: formatDateKey(todayDate),
       color: '#3b82f6',
+      calendarType: 'solar',
+      repeatType: 'none',
     },
     {
       id: 'event-2',
       title: '팀 주간 미팅',
       date: formatDateKey(laterInMonth),
       color: '#8b5cf6',
+      calendarType: 'solar',
+      repeatType: 'none',
     },
     {
       id: 'event-3',
       title: '운동 기록 점검',
       date: formatDateKey(anotherDay),
       color: '#0ea5a4',
+      calendarType: 'solar',
+      repeatType: 'none',
     },
   ];
 };
@@ -125,6 +179,7 @@ function App() {
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventColor, setNewEventColor] = useState(EVENT_COLOR_PRESETS[0]);
+  const [newEventType, setNewEventType] = useState<EventRepeatType>('none');
 
   const initialEvents = useMemo<Event[]>(() => buildInitialEvents(today), [today]);
 
@@ -140,14 +195,8 @@ function App() {
         return initialEvents;
       }
 
-      return parsed.filter(
-        (item): item is Event =>
-          Boolean(item) &&
-          typeof item.id === 'string' &&
-          typeof item.title === 'string' &&
-          typeof item.date === 'string' &&
-          typeof item.color === 'string',
-      );
+      const normalized = parsed.map(normalizeEvent).filter((item): item is Event => item !== null);
+      return normalized.length > 0 ? normalized : initialEvents;
     } catch {
       return initialEvents;
     }
@@ -157,21 +206,34 @@ function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
   }, [events]);
 
+  const monthCells = useMemo(() => createMonthGrid(currentMonth), [currentMonth]);
+
   const eventsByDate = useMemo(() => {
-    return events.reduce<Record<string, Event[]>>((acc, event) => {
-      if (!acc[event.date]) {
-        acc[event.date] = [];
+    return monthCells.reduce<Record<string, Event[]>>((acc, cell) => {
+      const dateKey = formatDateKey(cell.date);
+      const lunarDate = getLunarDate(cell.date);
+
+      const matchedEvents = events.filter((event) => {
+        if (event.repeatType === 'lunar-yearly') {
+          return Boolean(lunarDate && event.lunarMonth === lunarDate.month && event.lunarDay === lunarDate.day);
+        }
+
+        return event.date === dateKey;
+      });
+
+      if (matchedEvents.length > 0) {
+        acc[dateKey] = matchedEvents;
       }
-      acc[event.date].push(event);
+
       return acc;
     }, {});
-  }, [events]);
-
-  const monthCells = useMemo(() => createMonthGrid(currentMonth), [currentMonth]);
+  }, [events, monthCells]);
 
   const monthTitle = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
   const selectedDateEvents = eventsByDate[formatDateKey(selectedDate)] ?? [];
   const selectedLunarText = getLunarDateText(selectedDate, true);
+  const selectedLunarDate = getLunarDate(selectedDate);
+  const canAddLunarRepeat = selectedLunarDate !== null;
 
   const goPrevMonth = () => {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -190,6 +252,7 @@ function App() {
   const openAddForm = () => {
     setNewEventTitle('');
     setNewEventColor(EVENT_COLOR_PRESETS[0]);
+    setNewEventType('none');
     setIsAddFormOpen(true);
   };
 
@@ -205,11 +268,19 @@ function App() {
       return;
     }
 
+    if (newEventType === 'lunar-yearly' && !selectedLunarDate) {
+      return;
+    }
+
     const createdEvent: Event = {
       id: `event-${Date.now()}`,
       title: trimmedTitle,
       date: formatDateKey(selectedDate),
       color: newEventColor,
+      calendarType: newEventType === 'lunar-yearly' ? 'lunar' : 'solar',
+      repeatType: newEventType,
+      lunarMonth: newEventType === 'lunar-yearly' ? selectedLunarDate?.month : undefined,
+      lunarDay: newEventType === 'lunar-yearly' ? selectedLunarDate?.day : undefined,
     };
 
     setEvents((prev) => [...prev, createdEvent]);
@@ -318,6 +389,24 @@ function App() {
                 required
               />
 
+              <label htmlFor="new-event-type" className="form-label">일정 종류</label>
+              <select
+                id="new-event-type"
+                className="form-input"
+                value={newEventType}
+                onChange={(e) => setNewEventType(e.target.value as EventRepeatType)}
+              >
+                <option value="none">양력 일정</option>
+                <option value="lunar-yearly" disabled={!canAddLunarRepeat}>매년 음력 반복</option>
+              </select>
+
+              {newEventType === 'lunar-yearly' && selectedLunarDate && (
+                <p className="form-helper">반복 기준: 음력 {selectedLunarDate.month}.{selectedLunarDate.day}</p>
+              )}
+              {!canAddLunarRepeat && (
+                <p className="form-warning">현재 브라우저에서는 음력 변환을 지원하지 않아 음력 반복 저장을 사용할 수 없습니다.</p>
+              )}
+
               <p className="form-label">색상 선택</p>
               <div className="color-options" role="radiogroup" aria-label="일정 색상 선택">
                 {EVENT_COLOR_PRESETS.map((color) => (
@@ -335,7 +424,7 @@ function App() {
 
               <div className="form-actions">
                 <button type="button" className="form-secondary" onClick={closeAddForm}>취소</button>
-                <button type="submit" className="form-primary">저장</button>
+                <button type="submit" className="form-primary" disabled={newEventType === 'lunar-yearly' && !canAddLunarRepeat}>저장</button>
               </div>
             </form>
           )}
@@ -349,7 +438,12 @@ function App() {
               {selectedDateEvents.map((event) => (
                 <li key={event.id}>
                   <span className="panel-event-dot" style={{ backgroundColor: event.color }} aria-hidden="true" />
-                  <span className="panel-event-title">{event.title}</span>
+                  <div className="panel-event-content">
+                    <span className="panel-event-title">{event.title}</span>
+                    {event.repeatType === 'lunar-yearly' && event.lunarMonth && event.lunarDay && (
+                      <span className="panel-event-meta">음력 {event.lunarMonth}.{event.lunarDay} 반복</span>
+                    )}
+                  </div>
                   <button
                     type="button"
                     className="panel-delete-button"
