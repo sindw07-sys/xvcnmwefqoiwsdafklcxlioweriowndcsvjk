@@ -226,8 +226,10 @@ function App() {
   const [editingEventType, setEditingEventType] = useState<EventRepeatType>('none');
   const [editingEventCategoryId, setEditingEventCategoryId] = useState('');
   const [activeMenuEventId, setActiveMenuEventId] = useState<string | null>(null);
+  const [activeMenuCategoryId, setActiveMenuCategoryId] = useState<string | null>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const actionMenuAreaRef = useRef<HTMLUListElement>(null);
+  const categoryMenuAreaRef = useRef<HTMLUListElement>(null);
 
   const initialEvents = useMemo<Event[]>(() => buildInitialEvents(today), [today]);
 
@@ -334,6 +336,9 @@ function App() {
     const handleClickOutside = (e: MouseEvent) => {
       if (!actionMenuAreaRef.current?.contains(e.target as Node)) {
         setActiveMenuEventId(null);
+      }
+      if (!categoryMenuAreaRef.current?.contains(e.target as Node)) {
+        setActiveMenuCategoryId(null);
       }
     };
 
@@ -587,14 +592,63 @@ function App() {
       <main className="calendar-layout" aria-label="월간 캘린더와 선택 날짜 요약">
         <aside className="category-side-panel" aria-label="카테고리 관리 패널">
           <h2 className="category-panel-title">카테고리 관리</h2>
-          <ul className="category-list">
+          <ul className="category-list" ref={categoryMenuAreaRef}>
             {categories.map((category) => (
               <li key={category.id} className="category-item">
                 <span className="panel-event-dot" style={{ backgroundColor: category.color }} aria-hidden="true" />
                 <span className="category-name">{category.name}</span>
-                <button type="button" className="panel-action-menu-button" onClick={() => handleRenameCategory(category)} aria-label={`${category.name} 이름 수정`}>이름</button>
-                <button type="button" className="panel-action-menu-button" onClick={() => handleRecolorCategory(category)} aria-label={`${category.name} 색상 수정`}>색상</button>
-                <button type="button" className="panel-action-menu-button" onClick={() => handleDeleteCategory(category)} aria-label={`${category.name} 삭제`}>삭제</button>
+                <div className="panel-event-actions">
+                  <button
+                    type="button"
+                    className="panel-action-menu-button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setActiveMenuCategoryId((prev) => (prev === category.id ? null : category.id));
+                    }}
+                    aria-label={`${category.name} 카테고리 메뉴`}
+                    aria-haspopup="menu"
+                    aria-expanded={activeMenuCategoryId === category.id}
+                  >
+                    ⋯
+                  </button>
+                  {activeMenuCategoryId === category.id ? (
+                    <div className="panel-action-menu category-action-menu" role="menu" aria-label={`${category.name} 카테고리 메뉴`}>
+                      <button
+                        type="button"
+                        className="panel-action-menu-item"
+                        role="menuitem"
+                        onClick={() => {
+                          setActiveMenuCategoryId(null);
+                          handleRenameCategory(category);
+                        }}
+                      >
+                        이름 수정
+                      </button>
+                      <button
+                        type="button"
+                        className="panel-action-menu-item"
+                        role="menuitem"
+                        onClick={() => {
+                          setActiveMenuCategoryId(null);
+                          handleRecolorCategory(category);
+                        }}
+                      >
+                        색상 수정
+                      </button>
+                      <button
+                        type="button"
+                        className="panel-action-menu-item danger"
+                        role="menuitem"
+                        onClick={() => {
+                          setActiveMenuCategoryId(null);
+                          handleDeleteCategory(category);
+                        }}
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>
