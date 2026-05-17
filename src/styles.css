@@ -313,7 +313,7 @@ button:active {
   gap: 8px;
 }
 
-.panel-event-list li {
+.panel-event-item {
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -325,6 +325,21 @@ button:active {
   color: #1e293b;
 }
 
+
+.panel-event-item {
+  width: 100%;
+  min-width: 0;
+}
+
+.panel-event-item.is-editing {
+  display: block;
+  padding: 12px;
+}
+
+.panel-event-item.is-editing .panel-event-content {
+  width: 100%;
+  min-width: 0;
+}
 .panel-event-content {
   flex: 1;
   min-width: 0;
@@ -352,7 +367,11 @@ button:active {
 
 .panel-edit-form {
   width: 100%;
+  min-width: 0;
   margin-top: 2px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
 }
 
 .panel-edit-button {
@@ -470,12 +489,16 @@ button:active {
 
 .form-label {
   margin: 0;
+  white-space: normal;
+  word-break: keep-all;
   font-size: 0.82rem;
   font-weight: 700;
   color: #475569;
 }
 
 .form-input {
+  width: 100%;
+  min-width: 0;
   border: 1px solid #d6dfef;
   border-radius: 10px;
   min-height: 42px;
@@ -492,7 +515,10 @@ button:active {
 
 .color-options {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .color-option {
@@ -510,13 +536,15 @@ button:active {
 }
 
 .form-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-top: 2px;
 }
 
 .form-actions button {
-  flex: 1;
+  width: 100%;
+  min-width: 0;
   justify-content: center;
 }
 
@@ -579,6 +607,12 @@ button:active {
 
 @media (max-width: 480px) {
   .panel-backup-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 420px) {
+  .form-actions {
     grid-template-columns: 1fr;
   }
 }

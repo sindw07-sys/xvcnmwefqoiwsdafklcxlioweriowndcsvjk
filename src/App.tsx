@@ -578,11 +578,14 @@ function App() {
             </div>
           ) : (
             <ul className="panel-event-list" aria-label="선택 날짜 일정 목록">
-              {selectedDateEvents.map((event) => (
-                <li key={event.id}>
-                  <span className="panel-event-dot" style={{ backgroundColor: event.color }} aria-hidden="true" />
+              {selectedDateEvents.map((event) => {
+                const isEditing = editingEventId === event.id;
+
+                return (
+                <li key={event.id} className={`panel-event-item ${isEditing ? 'is-editing' : ''}`.trim()}>
+                  {!isEditing && <span className="panel-event-dot" style={{ backgroundColor: event.color }} aria-hidden="true" />}
                   <div className="panel-event-content">
-                    {editingEventId === event.id ? (
+                    {isEditing ? (
                       <form className="add-event-form panel-edit-form" onSubmit={(e) => handleEditEvent(e, event)}>
                         <label htmlFor={`edit-event-title-${event.id}`} className="form-label">일정 제목</label>
                         <input
@@ -639,25 +642,29 @@ function App() {
                       </>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    className="panel-edit-button"
-                    onClick={() => startEditEvent(event)}
-                    aria-label={`${event.title} 일정 수정`}
-                    disabled={editingEventId === event.id}
-                  >
-                    수정
-                  </button>
-                  <button
-                    type="button"
-                    className="panel-delete-button"
-                    onClick={() => handleDeleteEvent(event.id)}
-                    aria-label={`${event.title} 일정 삭제`}
-                  >
-                    삭제
-                  </button>
+                  {!isEditing && (
+                    <>
+                      <button
+                        type="button"
+                        className="panel-edit-button"
+                        onClick={() => startEditEvent(event)}
+                        aria-label={`${event.title} 일정 수정`}
+                      >
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        className="panel-delete-button"
+                        onClick={() => handleDeleteEvent(event.id)}
+                        aria-label={`${event.title} 일정 삭제`}
+                      >
+                        삭제
+                      </button>
+                    </>
+                  )}
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </aside>
