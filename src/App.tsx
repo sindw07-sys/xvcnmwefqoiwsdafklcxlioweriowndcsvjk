@@ -5,7 +5,7 @@ const WEEKDAY_NAMES = ['일요일', '월요일', '화요일', '수요일', '목�
 const MAX_EVENT_DOTS_IN_CELL = 4;
 const STORAGE_KEY = 'uplog-events';
 const CATEGORY_STORAGE_KEY = 'uplog-categories';
-const EVENT_COLOR_PRESETS = ['#3b82f6', '#8b5cf6', '#0ea5a4', '#f97316', '#ec4899'];
+const DEFAULT_CATEGORY_ID = 'default-etc';
 
 type CalendarDay = {
   date: Date;
@@ -171,9 +171,11 @@ const normalizeCategory = (item: unknown): Category | null => {
 };
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'default-work', name: '업무', color: '#3b82f6' },
-  { id: 'default-life', name: '개인', color: '#8b5cf6' },
-  { id: 'default-health', name: '건강', color: '#0ea5a4' },
+  { id: 'default-personal', name: '개인', color: '#3b82f6' },
+  { id: 'default-family', name: '가족', color: '#8b5cf6' },
+  { id: 'default-hospital', name: '병원', color: '#0ea5a4' },
+  { id: 'default-anniversary', name: '기념일', color: '#f97316' },
+  { id: DEFAULT_CATEGORY_ID, name: '기타', color: '#64748b' },
 ];
 
 const buildInitialEvents = (now: Date): Event[] => {
@@ -215,13 +217,11 @@ function App() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState('');
-  const [newEventColor, setNewEventColor] = useState(EVENT_COLOR_PRESETS[0]);
   const [newEventMemo, setNewEventMemo] = useState('');
   const [newEventType, setNewEventType] = useState<EventRepeatType>('none');
   const [newEventCategoryId, setNewEventCategoryId] = useState('');
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [editingEventTitle, setEditingEventTitle] = useState('');
-  const [editingEventColor, setEditingEventColor] = useState(EVENT_COLOR_PRESETS[0]);
   const [editingEventMemo, setEditingEventMemo] = useState('');
   const [editingEventType, setEditingEventType] = useState<EventRepeatType>('none');
   const [editingEventCategoryId, setEditingEventCategoryId] = useState('');
@@ -277,6 +277,57 @@ function App() {
   }, [categories]);
 
   const getEventColor = (event: Event) => categoryById[event.categoryId ?? '']?.color ?? event.color;
+
+  const categoryByColor = useMemo(() => {
+    return DEFAULT_CATEGORIES.reduce<Record<string, string>>((acc, category) => {
+      acc[category.color.toLowerCase()] = category.id;
+      return acc;
+    }, {});
+  }, []);
+
+  useEffect(() => {
+    setEvents((prev) =>
+      prev.map((event) => {
+        if (event.categoryId && categoryById[event.categoryId]) return event;
+        const migratedCategoryId = categoryByColor[event.color.toLowerCase()] ?? DEFAULT_CATEGORY_ID;
+        return { ...event, categoryId: migratedCategoryId };
+      }),
+    );
+  }, [categoryByColor, categoryById]);
+
+  const handleAddCategory = () => {
+    const name = window.prompt('새 카테고리 이름을 입력해 주세요.');
+    if (!name) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const color = window.prompt('카테고리 색상(#RRGGBB)을 입력해 주세요.', '#64748b')?.trim() || '#64748b';
+    setCategories((prev) => [...prev, { id: `category-${Date.now()}`, name: trimmed, color }]);
+  };
+
+  const handleRenameCategory = (category: Category) => {
+    const name = window.prompt('카테고리 이름 수정', category.name);
+    if (!name) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setCategories((prev) => prev.map((item) => (item.id === category.id ? { ...item, name: trimmed } : item)));
+  };
+
+  const handleRecolorCategory = (category: Category) => {
+    const color = window.prompt('카테고리 색상 수정(#RRGGBB)', category.color)?.trim();
+    if (!color) return;
+    setCategories((prev) => prev.map((item) => (item.id === category.id ? { ...item, color } : item)));
+  };
+
+  const handleDeleteCategory = (category: Category) => {
+    if (category.id === DEFAULT_CATEGORY_ID) { window.alert('기타 카테고리는 삭제할 수 없습니다.'); return; }
+    const usedCount = events.filter((event) => event.categoryId === category.id).length;
+    const message = usedCount > 0
+      ? '이 카테고리를 사용하는 일정은 기타로 이동됩니다. 삭제할까요?'
+      : '이 카테고리를 삭제할까요?';
+    if (!window.confirm(message)) return;
+    setEvents((prev) => prev.map((event) => (event.categoryId === category.id ? { ...event, categoryId: DEFAULT_CATEGORY_ID } : event)));
+    setCategories((prev) => prev.filter((item) => item.id !== category.id));
+  };
 
 
   useEffect(() => {
@@ -335,10 +386,9 @@ function App() {
 
   const openAddForm = () => {
     setNewEventTitle('');
-    setNewEventColor(EVENT_COLOR_PRESETS[0]);
     setNewEventType('none');
     setNewEventMemo('');
-    setNewEventCategoryId('');
+    setNewEventCategoryId(DEFAULT_CATEGORY_ID);
     setIsAddFormOpen(true);
   };
 
@@ -365,13 +415,13 @@ function App() {
       id: `event-${Date.now()}`,
       title: trimmedTitle,
       date: formatDateKey(selectedDate),
-      color: newEventColor,
+      color: categoryById[newEventCategoryId]?.color ?? DEFAULT_CATEGORIES[0].color,
       memo: trimmedMemo || undefined,
       calendarType: newEventType === 'lunar-yearly' ? 'lunar' : 'solar',
       repeatType: newEventType,
       lunarMonth: newEventType === 'lunar-yearly' ? selectedLunarDate?.month : undefined,
       lunarDay: newEventType === 'lunar-yearly' ? selectedLunarDate?.day : undefined,
-      categoryId: newEventCategoryId || undefined,
+      categoryId: newEventCategoryId,
     };
 
     setEvents((prev) => [...prev, createdEvent]);
@@ -445,11 +495,9 @@ function App() {
 
       setEvents(normalizedEvents);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedEvents));
-      if (normalizedCategories) {
-        const nextCategories = normalizedCategories.length > 0 ? normalizedCategories : DEFAULT_CATEGORIES;
-        setCategories(nextCategories);
-        localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(nextCategories));
-      }
+      const nextCategories = normalizedCategories && normalizedCategories.length > 0 ? normalizedCategories : DEFAULT_CATEGORIES;
+      setCategories(nextCategories);
+      localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(nextCategories));
       window.alert('백업 가져오기가 완료되었습니다.');
     } catch {
       window.alert('백업 파일을 읽을 수 없습니다. JSON 파일인지 확인해 주세요.');
@@ -473,16 +521,14 @@ function App() {
     setIsAddFormOpen(false);
     setEditingEventId(event.id);
     setEditingEventTitle(event.title);
-    setEditingEventColor(event.color);
     setEditingEventMemo(event.memo ?? '');
     setEditingEventType(event.repeatType);
-    setEditingEventCategoryId(event.categoryId ?? '');
+    setEditingEventCategoryId(event.categoryId ?? DEFAULT_CATEGORY_ID);
   };
 
   const cancelEditEvent = () => {
     setEditingEventId(null);
     setEditingEventTitle('');
-    setEditingEventColor(EVENT_COLOR_PRESETS[0]);
     setEditingEventMemo('');
     setEditingEventType('none');
     setEditingEventCategoryId('');
@@ -510,13 +556,13 @@ function App() {
         return {
           ...event,
           title: trimmedTitle,
-          color: editingEventColor,
+          color: categoryById[editingEventCategoryId]?.color ?? event.color,
           memo: trimmedMemo || undefined,
           calendarType: editingEventType === 'lunar-yearly' ? 'lunar' : 'solar',
           repeatType: editingEventType,
           lunarMonth: editingEventType === 'lunar-yearly' ? selectedLunarDate?.month ?? event.lunarMonth : undefined,
           lunarDay: editingEventType === 'lunar-yearly' ? selectedLunarDate?.day ?? event.lunarDay : undefined,
-          categoryId: editingEventCategoryId || undefined,
+          categoryId: editingEventCategoryId,
         };
       }),
     );
@@ -670,26 +716,11 @@ function App() {
                 value={newEventCategoryId}
                 onChange={(e) => setNewEventCategoryId(e.target.value)}
               >
-                <option value="">선택 안 함 (기존 색상 사용)</option>
                 {categories.map((category) => (
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
               </select>
-
-              <p className="form-label">색상 선택</p>
-              <div className="color-options" role="radiogroup" aria-label="일정 색상 선택">
-                {EVENT_COLOR_PRESETS.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    className={`color-option ${newEventColor === color ? 'active' : ''}`}
-                    style={{ backgroundColor: color }}
-                    onClick={() => setNewEventColor(color)}
-                    aria-label={`색상 ${color}`}
-                    aria-pressed={newEventColor === color}
-                  />
-                ))}
-              </div>
+              <p className="form-helper">선택한 카테고리 색상이 캘린더 점 색상으로 사용됩니다.</p>
 
               <div className="form-actions">
                 <button type="button" className="form-secondary" onClick={closeAddForm}>취소</button>
@@ -756,26 +787,11 @@ function App() {
                           value={editingEventCategoryId}
                           onChange={(e) => setEditingEventCategoryId(e.target.value)}
                         >
-                          <option value="">선택 안 함 (기존 색상 사용)</option>
-                          {categories.map((category) => (
+                                    {categories.map((category) => (
                             <option key={category.id} value={category.id}>{category.name}</option>
                           ))}
                         </select>
-
-                        <p className="form-label">색상 선택</p>
-                        <div className="color-options" role="radiogroup" aria-label="일정 색상 수정">
-                          {EVENT_COLOR_PRESETS.map((color) => (
-                            <button
-                              key={color}
-                              type="button"
-                              className={`color-option ${editingEventColor === color ? 'active' : ''}`}
-                              style={{ backgroundColor: color }}
-                              onClick={() => setEditingEventColor(color)}
-                              aria-label={`색상 ${color}`}
-                              aria-pressed={editingEventColor === color}
-                            />
-                          ))}
-                        </div>
+                        <p className="form-helper">선택한 카테고리 색상이 캘린더 점 색상으로 사용됩니다.</p>
 
                         <div className="form-actions">
                           <button type="button" className="form-secondary" onClick={cancelEditEvent}>취소</button>
@@ -837,6 +853,23 @@ function App() {
               })}
             </ul>
           )}
+
+          <details className="category-manager">
+            <summary>카테고리 관리</summary>
+            <ul className="category-list">
+              {categories.map((category) => (
+                <li key={category.id} className="category-item">
+                  <span className="panel-event-dot" style={{ backgroundColor: category.color }} aria-hidden="true" />
+                  <span className="category-name">{category.name}</span>
+                  <button type="button" className="panel-action-menu-button" onClick={() => handleRenameCategory(category)} aria-label={`${category.name} 이름 수정`}>이름</button>
+                  <button type="button" className="panel-action-menu-button" onClick={() => handleRecolorCategory(category)} aria-label={`${category.name} 색상 수정`}>색상</button>
+                  <button type="button" className="panel-action-menu-button" onClick={() => handleDeleteCategory(category)} aria-label={`${category.name} 삭제`}>삭제</button>
+                </li>
+              ))}
+            </ul>
+            <button type="button" className="panel-utility-button" onClick={handleAddCategory}>카테고리 추가</button>
+          </details>
+
         </aside>
       </main>
     </div>
