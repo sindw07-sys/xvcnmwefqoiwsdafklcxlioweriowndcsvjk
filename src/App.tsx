@@ -175,8 +175,8 @@ function App() {
                           style={{ backgroundColor: event.color }}
                         />
                       ))}
+                      {hiddenEventCount > 0 && <span className="event-more">+{hiddenEventCount}</span>}
                     </div>
-                    {hiddenEventCount > 0 && <span className="event-more">+{hiddenEventCount}</span>}
                   </div>
                 </button>
               );
