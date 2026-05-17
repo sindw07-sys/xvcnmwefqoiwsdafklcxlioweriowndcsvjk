@@ -111,9 +111,28 @@ button:active {
 
 .calendar-layout {
   display: grid;
-  grid-template-columns: minmax(0, 2.35fr) minmax(250px, 0.95fr);
+  grid-template-columns: minmax(210px, 0.75fr) minmax(0, 2.2fr) minmax(250px, 0.95fr);
   gap: clamp(16px, 2.4vw, 26px);
   align-items: start;
+}
+
+
+.category-side-panel {
+  min-width: 0;
+  border-radius: var(--panel-radius);
+  background: linear-gradient(180deg, #fcfdff 0%, #f8fbff 100%);
+  border: 1px solid #e4eaf6;
+  box-shadow: 0 10px 24px rgba(30, 41, 59, 0.06);
+  padding: clamp(14px, 1.8vw, 20px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.category-panel-title {
+  margin: 0;
+  font-size: 1rem;
+  color: #0f172a;
 }
 
 .calendar-card {
@@ -441,13 +460,24 @@ button:active {
   background: #fff1f3;
   color: #be123c;
 }
+@media (max-width: 1080px) {
+  .calendar-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(250px, 0.9fr);
+  }
+
+  .category-side-panel {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 920px) {
   .calendar-layout {
     grid-template-columns: 1fr;
   }
 
-  .selected-day-panel {
-  min-width: 0;
+  .selected-day-panel,
+  .category-side-panel {
+    min-width: 0;
     max-width: none;
     width: 100%;
   }
@@ -665,24 +695,9 @@ button:active {
   white-space: pre-wrap;
 }
 
-.category-manager {
-  margin-top: 6px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 8px;
-}
-
-.category-manager summary {
-  cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #475569;
-}
-
 .category-list {
   list-style: none;
-  padding: 8px 0 4px;
+  padding: 4px 0;
   margin: 0;
   display: flex;
   flex-direction: column;
