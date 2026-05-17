@@ -320,13 +320,9 @@ button:active {
   border-radius: 12px;
   background: var(--surface-white);
   box-shadow: inset 0 0 0 1px #e7edf8;
-  padding: 10px 12px;
+  padding: 9px 12px;
   font-weight: 600;
   color: #1e293b;
-}
-
-
-.panel-event-item {
   width: 100%;
   min-width: 0;
 }
@@ -345,11 +341,15 @@ button:active {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  justify-content: center;
+  gap: 3px;
 }
 
 .panel-event-title {
   min-width: 0;
+  color: #111827;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .panel-event-meta {
@@ -374,44 +374,45 @@ button:active {
   gap: 10px;
 }
 
-.panel-edit-button {
-  min-width: 58px;
-  min-height: 34px;
-  padding: 7px 10px;
-  border-radius: 10px;
-  border-color: #d6deeb;
-  background: #ffffff;
-  color: #64748b;
-  font-size: 0.82rem;
-  font-weight: 700;
+.panel-edit-button,
+.panel-delete-button {
+  flex: 0 0 auto;
+  align-self: center;
+  min-width: 52px;
+  min-height: 38px;
+  padding: 6px 9px;
+  border-radius: 9px;
+  font-size: 0.76rem;
+  font-weight: 600;
   line-height: 1;
 }
 
-.panel-edit-button:hover {
-  border-color: #c8d4e5;
-  background: #f8fafc;
+.panel-edit-button {
+  border-color: #d9e2ef;
+  background: #f8fbff;
+  color: #475569;
+}
+
+.panel-edit-button:hover,
+.panel-edit-button:focus-visible {
+  border-color: #c7d5e8;
+  background: #f1f6fd;
   color: #334155;
-  box-shadow: 0 4px 12px rgba(100, 116, 139, 0.15);
+  box-shadow: 0 3px 10px rgba(100, 116, 139, 0.12);
 }
 
 .panel-delete-button {
-  min-width: 58px;
-  min-height: 34px;
-  padding: 7px 10px;
-  border-radius: 10px;
-  border-color: #d7deea;
-  background: #f8fafc;
-  color: #475569;
-  font-size: 0.82rem;
-  font-weight: 700;
-  line-height: 1;
+  border-color: #dde4ef;
+  background: #fafcff;
+  color: #64748b;
 }
 
-.panel-delete-button:hover {
-  border-color: #f0c9cf;
-  background: #fff1f2;
+.panel-delete-button:hover,
+.panel-delete-button:focus-visible {
+  border-color: #ebc7cf;
+  background: #fff5f6;
   color: #9f1239;
-  box-shadow: 0 4px 12px rgba(190, 24, 93, 0.12);
+  box-shadow: 0 3px 10px rgba(190, 24, 93, 0.1);
 }
 
 @media (max-width: 920px) {
