@@ -183,6 +183,15 @@ function App() {
     closeAddForm();
   };
 
+  const handleDeleteEvent = (eventId: string) => {
+    const shouldDelete = window.confirm('이 일정을 삭제할까요?');
+    if (!shouldDelete) {
+      return;
+    }
+
+    setEvents((prev) => prev.filter((event) => event.id !== eventId));
+  };
+
   return (
     <div className="app-shell">
       <header className="calendar-header">
@@ -302,7 +311,15 @@ function App() {
               {selectedDateEvents.map((event) => (
                 <li key={event.id}>
                   <span className="panel-event-dot" style={{ backgroundColor: event.color }} aria-hidden="true" />
-                  <span>{event.title}</span>
+                  <span className="panel-event-title">{event.title}</span>
+                  <button
+                    type="button"
+                    className="panel-delete-button"
+                    onClick={() => handleDeleteEvent(event.id)}
+                    aria-label={`${event.title} 일정 삭제`}
+                  >
+                    삭제
+                  </button>
                 </li>
               ))}
             </ul>

@@ -303,11 +303,36 @@ button:active {
   color: #1e293b;
 }
 
+.panel-event-title {
+  flex: 1;
+  min-width: 0;
+}
+
 .panel-event-dot {
   width: 10px;
   height: 10px;
   border-radius: 999px;
   flex: 0 0 auto;
+}
+
+.panel-delete-button {
+  min-width: 58px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border-color: #d7deea;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.panel-delete-button:hover {
+  border-color: #f0c9cf;
+  background: #fff1f2;
+  color: #9f1239;
+  box-shadow: 0 4px 12px rgba(190, 24, 93, 0.12);
 }
 
 @media (max-width: 920px) {
