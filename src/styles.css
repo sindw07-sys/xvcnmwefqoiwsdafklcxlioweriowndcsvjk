@@ -374,47 +374,73 @@ button:active {
   gap: 10px;
 }
 
-.panel-edit-button,
-.panel-delete-button {
+
+.panel-event-actions {
+  position: relative;
+  margin-left: auto;
   flex: 0 0 auto;
-  align-self: center;
-  min-width: 52px;
-  min-height: 38px;
-  padding: 6px 9px;
-  border-radius: 9px;
-  font-size: 0.76rem;
-  font-weight: 600;
-  line-height: 1;
 }
 
-.panel-edit-button {
-  border-color: #d9e2ef;
-  background: #f8fbff;
-  color: #475569;
-}
-
-.panel-edit-button:hover,
-.panel-edit-button:focus-visible {
-  border-color: #c7d5e8;
-  background: #f1f6fd;
-  color: #334155;
-  box-shadow: 0 3px 10px rgba(100, 116, 139, 0.12);
-}
-
-.panel-delete-button {
-  border-color: #dde4ef;
-  background: #fafcff;
+.panel-action-menu-button {
+  min-width: 36px;
+  min-height: 36px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  border-color: #dbe3f0;
+  background: #f8fafd;
   color: #64748b;
+  font-size: 1rem;
+  line-height: 1;
+  box-shadow: none;
 }
 
-.panel-delete-button:hover,
-.panel-delete-button:focus-visible {
-  border-color: #ebc7cf;
-  background: #fff5f6;
-  color: #9f1239;
-  box-shadow: 0 3px 10px rgba(190, 24, 93, 0.1);
+.panel-action-menu-button:hover,
+.panel-action-menu-button:focus-visible {
+  background: #f1f5fb;
+  border-color: #cfd9e8;
+  color: #334155;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
 }
 
+.panel-action-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 104px;
+  padding: 6px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
+  z-index: 10;
+}
+
+.panel-action-menu-item {
+  width: 100%;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: #334155;
+  box-shadow: none;
+}
+
+.panel-action-menu-item:hover,
+.panel-action-menu-item:focus-visible {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.panel-action-menu-item.danger:hover,
+.panel-action-menu-item.danger:focus-visible {
+  background: #fff1f3;
+  color: #be123c;
+}
 @media (max-width: 920px) {
   .calendar-layout {
     grid-template-columns: 1fr;
