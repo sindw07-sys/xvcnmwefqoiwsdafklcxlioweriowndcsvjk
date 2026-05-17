@@ -643,3 +643,24 @@ button:active {
     grid-template-columns: 1fr;
   }
 }
+
+.form-textarea {
+  resize: vertical;
+  min-height: 74px;
+  max-height: 144px;
+  line-height: 1.45;
+}
+
+.panel-event-memo {
+  margin: 1px 0 0;
+  font-size: 0.77rem;
+  line-height: 1.4;
+  color: #64748b;
+  font-weight: 500;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
