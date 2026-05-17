@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 const WEEKDAY_NAMES = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
@@ -190,7 +190,9 @@ function App() {
   const [editingEventTitle, setEditingEventTitle] = useState('');
   const [editingEventColor, setEditingEventColor] = useState(EVENT_COLOR_PRESETS[0]);
   const [editingEventType, setEditingEventType] = useState<EventRepeatType>('none');
+  const [activeMenuEventId, setActiveMenuEventId] = useState<string | null>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
+  const actionMenuAreaRef = useRef<HTMLUListElement>(null);
 
   const initialEvents = useMemo<Event[]>(() => buildInitialEvents(today), [today]);
 
@@ -216,6 +218,18 @@ function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
   }, [events]);
+
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!actionMenuAreaRef.current?.contains(e.target as Node)) {
+        setActiveMenuEventId(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const monthCells = useMemo(() => createMonthGrid(currentMonth), [currentMonth]);
 
@@ -367,6 +381,7 @@ function App() {
   };
 
   const handleDeleteEvent = (eventId: string) => {
+    setActiveMenuEventId(null);
     const shouldDelete = window.confirm('이 일정을 삭제할까요?');
     if (!shouldDelete) {
       return;
@@ -376,6 +391,7 @@ function App() {
   };
 
   const startEditEvent = (event: Event) => {
+    setActiveMenuEventId(null);
     setIsAddFormOpen(false);
     setEditingEventId(event.id);
     setEditingEventTitle(event.title);
@@ -577,7 +593,7 @@ function App() {
               <p>아직 일정 없음</p>
             </div>
           ) : (
-            <ul className="panel-event-list" aria-label="선택 날짜 일정 목록">
+            <ul className="panel-event-list" aria-label="선택 날짜 일정 목록" ref={actionMenuAreaRef}>
               {selectedDateEvents.map((event) => {
                 const isEditing = editingEventId === event.id;
 
@@ -643,24 +659,41 @@ function App() {
                     )}
                   </div>
                   {!isEditing && (
-                    <>
+                    <div className="panel-event-actions">
                       <button
                         type="button"
-                        className="panel-edit-button"
-                        onClick={() => startEditEvent(event)}
-                        aria-label={`${event.title} 일정 수정`}
+                        className="panel-action-menu-button"
+                        onClick={(e: ReactMouseEvent<HTMLButtonElement>) => {
+                          e.stopPropagation();
+                          setActiveMenuEventId((prev) => (prev === event.id ? null : event.id));
+                        }}
+                        aria-label={`${event.title} 일정 액션 메뉴`}
+                        aria-haspopup="menu"
+                        aria-expanded={activeMenuEventId === event.id}
                       >
-                        수정
+                        ⋯
                       </button>
-                      <button
-                        type="button"
-                        className="panel-delete-button"
-                        onClick={() => handleDeleteEvent(event.id)}
-                        aria-label={`${event.title} 일정 삭제`}
-                      >
-                        삭제
-                      </button>
-                    </>
+                      {activeMenuEventId === event.id && (
+                        <div className="panel-action-menu" role="menu" aria-label={`${event.title} 일정 메뉴`}>
+                          <button
+                            type="button"
+                            className="panel-action-menu-item"
+                            role="menuitem"
+                            onClick={() => startEditEvent(event)}
+                          >
+                            수정
+                          </button>
+                          <button
+                            type="button"
+                            className="panel-action-menu-item danger"
+                            role="menuitem"
+                            onClick={() => handleDeleteEvent(event.id)}
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </li>
                 );
