@@ -59,6 +59,38 @@ const formatDateKorean = (date: Date) => `${date.getFullYear()}년 ${date.getMon
 
 const formatSelectedDate = (date: Date) => `${formatDateKorean(date)} ${WEEKDAY_NAMES[date.getDay()]}`;
 
+const chineseLunarFormatter = (() => {
+  try {
+    return new Intl.DateTimeFormat('ko-KR-u-ca-chinese', {
+      month: 'numeric',
+      day: 'numeric',
+    });
+  } catch {
+    return null;
+  }
+})();
+
+const getLunarDateText = (date: Date, withLabel = false): string => {
+  if (!chineseLunarFormatter) {
+    return '';
+  }
+
+  const parts = chineseLunarFormatter.formatToParts(date);
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+
+  if (!month || !day) {
+    return '';
+  }
+
+  if (withLabel) {
+    return `음력 ${month}월 ${day}일`;
+  }
+
+  return `음 ${month}.${day}`;
+};
+
+
 const buildInitialEvents = (now: Date): Event[] => {
   const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const laterInMonth = new Date(now.getFullYear(), now.getMonth(), Math.min(now.getDate() + 3, 28));
@@ -139,6 +171,7 @@ function App() {
 
   const monthTitle = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
   const selectedDateEvents = eventsByDate[formatDateKey(selectedDate)] ?? [];
+  const selectedLunarText = getLunarDateText(selectedDate, true);
 
   const goPrevMonth = () => {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -219,6 +252,7 @@ function App() {
               const cellEvents = eventsByDate[formatDateKey(cell.date)] ?? [];
               const visibleEvents = cellEvents.slice(0, MAX_EVENT_DOTS_IN_CELL);
               const hiddenEventCount = Math.max(cellEvents.length - visibleEvents.length, 0);
+              const lunarText = getLunarDateText(cell.date);
 
               return (
                 <button
@@ -240,6 +274,9 @@ function App() {
                     <span className="date-number">{cell.date.getDate()}</span>
                     {cell.isToday && <span className="badge">Today</span>}
                   </div>
+                  {lunarText && (
+                    <span className={`lunar-date ${cell.inCurrentMonth ? '' : 'muted'}`.trim()}>{lunarText}</span>
+                  )}
                   <div className="day-events" aria-hidden="true">
                     <div className="event-dots">
                       {visibleEvents.map((event) => (
@@ -261,6 +298,7 @@ function App() {
         <aside className="selected-day-panel" aria-live="polite" aria-label="선택한 날짜 요약">
           <p className="panel-label">선택한 날짜</p>
           <h2 className="panel-date">{formatSelectedDate(selectedDate)}</h2>
+          {selectedLunarText && <p className="panel-lunar-date">{selectedLunarText}</p>}
 
           <button type="button" className="panel-add-button" onClick={openAddForm}>
             일정 추가
