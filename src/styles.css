@@ -21,7 +21,7 @@ body {
 }
 
 .app-shell {
-  max-width: 1080px;
+  max-width: 1180px;
   margin: 0 auto;
   background: linear-gradient(180deg, var(--surface-white) 0%, #fbfcff 100%);
   border: 1px solid #e5eaf3;
@@ -111,8 +111,8 @@ button:active {
 
 .calendar-layout {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
-  gap: clamp(14px, 2vw, 20px);
+  grid-template-columns: minmax(0, 2.35fr) minmax(250px, 0.95fr);
+  gap: clamp(16px, 2.4vw, 26px);
   align-items: start;
 }
 
@@ -120,14 +120,14 @@ button:active {
   border-radius: var(--panel-radius);
   border: 1px solid #e6eaf3;
   background: var(--surface-white);
-  padding: clamp(10px, 1.8vw, 18px);
+  padding: clamp(12px, 1.9vw, 20px);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: clamp(6px, 1.2vw, 12px);
+  gap: clamp(7px, 1.05vw, 11px);
 }
 
 .day-label {
@@ -146,7 +146,8 @@ button:active {
   justify-content: space-between;
   font-size: 1rem;
   font-weight: 700;
-  padding: clamp(9px, 1.2vw, 13px);
+  padding: clamp(10px, 1.15vw, 14px);
+  min-height: clamp(86px, 10.5vw, 132px);
   background: #fcfdff;
   border: 1px solid #e5eaf5;
   border-radius: 14px;
@@ -179,7 +180,7 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   padding-right: 2px;
 }
 
@@ -188,7 +189,7 @@ button:active {
   justify-content: center;
   margin-top: auto;
   min-height: 0;
-  padding-top: 4px;
+  padding-top: 8px;
 }
 
 .event-dots {
@@ -237,7 +238,9 @@ button:active {
   background: linear-gradient(180deg, #fcfdff 0%, #f4f8ff 100%);
   border: 1px solid #e4eaf6;
   box-shadow: 0 10px 24px rgba(30, 41, 59, 0.08);
-  padding: clamp(16px, 2vw, 22px);
+  padding: clamp(16px, 1.8vw, 22px);
+  max-width: 360px;
+  width: min(100%, 360px);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -305,6 +308,11 @@ button:active {
   .calendar-layout {
     grid-template-columns: 1fr;
   }
+
+  .selected-day-panel {
+    max-width: none;
+    width: 100%;
+  }
 }
 
 @media (max-width: 760px) {
@@ -322,7 +330,7 @@ button:active {
   }
 
   .day-cell {
-    min-height: 64px;
+    min-height: 72px;
   }
 }
 
