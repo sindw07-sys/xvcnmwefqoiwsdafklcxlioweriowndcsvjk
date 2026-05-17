@@ -21,7 +21,7 @@ body {
 }
 
 .app-shell {
-  max-width: 1180px;
+  max-width: 1400px;
   margin: 0 auto;
   background: linear-gradient(180deg, var(--surface-white) 0%, #fbfcff 100%);
   border: 1px solid #e5eaf3;
@@ -111,8 +111,8 @@ button:active {
 
 .calendar-layout {
   display: grid;
-  grid-template-columns: minmax(210px, 0.75fr) minmax(0, 2.2fr) minmax(250px, 0.95fr);
-  gap: clamp(16px, 2.4vw, 26px);
+  grid-template-columns: minmax(180px, 210px) minmax(620px, 1fr) minmax(260px, 290px);
+  gap: clamp(14px, 1.8vw, 22px);
   align-items: start;
 }
 
@@ -123,10 +123,10 @@ button:active {
   background: linear-gradient(180deg, #fcfdff 0%, #f8fbff 100%);
   border: 1px solid #e4eaf6;
   box-shadow: 0 10px 24px rgba(30, 41, 59, 0.06);
-  padding: clamp(14px, 1.8vw, 20px);
+  padding: clamp(12px, 1.3vw, 16px);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .category-panel-title {
@@ -137,10 +137,11 @@ button:active {
 
 .calendar-card {
   min-width: 0;
+  width: 100%;
   border-radius: var(--panel-radius);
   border: 1px solid #e6eaf3;
   background: var(--surface-white);
-  padding: clamp(12px, 1.9vw, 20px);
+  padding: clamp(12px, 1.4vw, 18px);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
   overflow: hidden;
 }
@@ -149,7 +150,8 @@ button:active {
   display: grid;
   width: 100%;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: clamp(4px, 0.75vw, 8px);
+  gap: clamp(5px, 0.6vw, 8px);
+  min-width: 0;
 }
 
 .day-label {
@@ -170,7 +172,7 @@ button:active {
   justify-content: space-between;
   font-size: 1rem;
   font-weight: 700;
-  padding: clamp(8px, 1vw, 12px);
+  padding: clamp(9px, 0.75vw, 12px);
   min-height: 0;
   background: #fcfdff;
   border: 1px solid #e5eaf5;
@@ -204,14 +206,14 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
   padding-right: 2px;
 }
 
 
 .lunar-date {
-  margin-top: 3px;
-  font-size: 0.66rem;
+  margin-top: 4px;
+  font-size: 0.7rem;
   font-weight: 600;
   line-height: 1.15;
   color: #64748b;
@@ -235,7 +237,7 @@ button:active {
   justify-content: center;
   margin-top: auto;
   min-height: 0;
-  padding-top: 8px;
+  padding-top: 10px;
 }
 
 .event-dots {
@@ -285,9 +287,9 @@ button:active {
   background: linear-gradient(180deg, #fcfdff 0%, #f4f8ff 100%);
   border: 1px solid #e4eaf6;
   box-shadow: 0 10px 24px rgba(30, 41, 59, 0.08);
-  padding: clamp(16px, 1.8vw, 22px);
-  max-width: 360px;
-  width: min(100%, 360px);
+  padding: clamp(14px, 1.4vw, 18px);
+  max-width: 290px;
+  width: min(100%, 290px);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -461,8 +463,12 @@ button:active {
   color: #be123c;
 }
 @media (max-width: 1080px) {
+  .app-shell {
+    max-width: 1160px;
+  }
+
   .calendar-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(250px, 0.9fr);
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 280px);
   }
 
   .category-side-panel {
