@@ -20,6 +20,7 @@ type Event = {
   title: string;
   date: string;
   color: string;
+  memo?: string;
   calendarType: EventCalendarType;
   repeatType: EventRepeatType;
   lunarMonth?: number;
@@ -130,6 +131,7 @@ const normalizeEvent = (item: unknown): Event | null => {
 
   const calendarType: EventCalendarType = raw.calendarType === 'lunar' ? 'lunar' : 'solar';
   const repeatType: EventRepeatType = raw.repeatType === 'lunar-yearly' ? 'lunar-yearly' : 'none';
+  const memo = typeof raw.memo === 'string' ? raw.memo : undefined;
   const lunarMonth = typeof raw.lunarMonth === 'number' ? raw.lunarMonth : undefined;
   const lunarDay = typeof raw.lunarDay === 'number' ? raw.lunarDay : undefined;
 
@@ -138,6 +140,7 @@ const normalizeEvent = (item: unknown): Event | null => {
     title: raw.title,
     date: raw.date,
     color: raw.color,
+    memo,
     calendarType,
     repeatType,
     lunarMonth,
@@ -185,10 +188,12 @@ function App() {
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventColor, setNewEventColor] = useState(EVENT_COLOR_PRESETS[0]);
+  const [newEventMemo, setNewEventMemo] = useState('');
   const [newEventType, setNewEventType] = useState<EventRepeatType>('none');
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [editingEventTitle, setEditingEventTitle] = useState('');
   const [editingEventColor, setEditingEventColor] = useState(EVENT_COLOR_PRESETS[0]);
+  const [editingEventMemo, setEditingEventMemo] = useState('');
   const [editingEventType, setEditingEventType] = useState<EventRepeatType>('none');
   const [activeMenuEventId, setActiveMenuEventId] = useState<string | null>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -278,12 +283,14 @@ function App() {
     setNewEventTitle('');
     setNewEventColor(EVENT_COLOR_PRESETS[0]);
     setNewEventType('none');
+    setNewEventMemo('');
     setIsAddFormOpen(true);
   };
 
   const closeAddForm = () => {
     setIsAddFormOpen(false);
     setNewEventTitle('');
+    setNewEventMemo('');
   };
 
   const handleAddEvent = (e: FormEvent) => {
@@ -297,11 +304,14 @@ function App() {
       return;
     }
 
+    const trimmedMemo = newEventMemo.trim();
+
     const createdEvent: Event = {
       id: `event-${Date.now()}`,
       title: trimmedTitle,
       date: formatDateKey(selectedDate),
       color: newEventColor,
+      memo: trimmedMemo || undefined,
       calendarType: newEventType === 'lunar-yearly' ? 'lunar' : 'solar',
       repeatType: newEventType,
       lunarMonth: newEventType === 'lunar-yearly' ? selectedLunarDate?.month : undefined,
@@ -396,6 +406,7 @@ function App() {
     setEditingEventId(event.id);
     setEditingEventTitle(event.title);
     setEditingEventColor(event.color);
+    setEditingEventMemo(event.memo ?? '');
     setEditingEventType(event.repeatType);
   };
 
@@ -403,6 +414,7 @@ function App() {
     setEditingEventId(null);
     setEditingEventTitle('');
     setEditingEventColor(EVENT_COLOR_PRESETS[0]);
+    setEditingEventMemo('');
     setEditingEventType('none');
   };
 
@@ -417,6 +429,8 @@ function App() {
       return;
     }
 
+    const trimmedMemo = editingEventMemo.trim();
+
     setEvents((prev) =>
       prev.map((event) => {
         if (event.id !== baseEvent.id) {
@@ -427,6 +441,7 @@ function App() {
           ...event,
           title: trimmedTitle,
           color: editingEventColor,
+          memo: trimmedMemo || undefined,
           calendarType: editingEventType === 'lunar-yearly' ? 'lunar' : 'solar',
           repeatType: editingEventType,
           lunarMonth: editingEventType === 'lunar-yearly' ? selectedLunarDate?.month ?? event.lunarMonth : undefined,
@@ -548,6 +563,17 @@ function App() {
                 required
               />
 
+              <label htmlFor="new-event-memo" className="form-label">메모 (선택)</label>
+              <textarea
+                id="new-event-memo"
+                className="form-input form-textarea"
+                placeholder="필요한 메모를 남겨두세요"
+                value={newEventMemo}
+                onChange={(e) => setNewEventMemo(e.target.value)}
+                maxLength={180}
+                rows={3}
+              />
+
               <label htmlFor="new-event-type" className="form-label">일정 종류</label>
               <select
                 id="new-event-type"
@@ -614,6 +640,16 @@ function App() {
                           required
                         />
 
+                        <label htmlFor={`edit-event-memo-${event.id}`} className="form-label">메모 (선택)</label>
+                        <textarea
+                          id={`edit-event-memo-${event.id}`}
+                          className="form-input form-textarea"
+                          value={editingEventMemo}
+                          onChange={(e) => setEditingEventMemo(e.target.value)}
+                          maxLength={180}
+                          rows={3}
+                        />
+
                         <label htmlFor={`edit-event-type-${event.id}`} className="form-label">일정 종류</label>
                         <select
                           id={`edit-event-type-${event.id}`}
@@ -652,6 +688,7 @@ function App() {
                     ) : (
                       <>
                         <span className="panel-event-title">{event.title}</span>
+                        {event.memo && <p className="panel-event-memo">{event.memo}</p>}
                         {event.repeatType === 'lunar-yearly' && event.lunarMonth && event.lunarDay && (
                           <span className="panel-event-meta">음력 {event.lunarMonth}.{event.lunarDay} 반복</span>
                         )}
