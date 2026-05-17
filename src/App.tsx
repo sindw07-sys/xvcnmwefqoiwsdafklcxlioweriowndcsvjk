@@ -585,6 +585,22 @@ function App() {
       </header>
 
       <main className="calendar-layout" aria-label="월간 캘린더와 선택 날짜 요약">
+        <aside className="category-side-panel" aria-label="카테고리 관리 패널">
+          <h2 className="category-panel-title">카테고리 관리</h2>
+          <ul className="category-list">
+            {categories.map((category) => (
+              <li key={category.id} className="category-item">
+                <span className="panel-event-dot" style={{ backgroundColor: category.color }} aria-hidden="true" />
+                <span className="category-name">{category.name}</span>
+                <button type="button" className="panel-action-menu-button" onClick={() => handleRenameCategory(category)} aria-label={`${category.name} 이름 수정`}>이름</button>
+                <button type="button" className="panel-action-menu-button" onClick={() => handleRecolorCategory(category)} aria-label={`${category.name} 색상 수정`}>색상</button>
+                <button type="button" className="panel-action-menu-button" onClick={() => handleDeleteCategory(category)} aria-label={`${category.name} 삭제`}>삭제</button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="panel-utility-button" onClick={handleAddCategory}>카테고리 추가</button>
+        </aside>
+
         <section className="calendar-card" aria-label="월간 캘린더">
           <div className="calendar-grid">
             {DAY_LABELS.map((label) => (
@@ -854,21 +870,7 @@ function App() {
             </ul>
           )}
 
-          <details className="category-manager">
-            <summary>카테고리 관리</summary>
-            <ul className="category-list">
-              {categories.map((category) => (
-                <li key={category.id} className="category-item">
-                  <span className="panel-event-dot" style={{ backgroundColor: category.color }} aria-hidden="true" />
-                  <span className="category-name">{category.name}</span>
-                  <button type="button" className="panel-action-menu-button" onClick={() => handleRenameCategory(category)} aria-label={`${category.name} 이름 수정`}>이름</button>
-                  <button type="button" className="panel-action-menu-button" onClick={() => handleRecolorCategory(category)} aria-label={`${category.name} 색상 수정`}>색상</button>
-                  <button type="button" className="panel-action-menu-button" onClick={() => handleDeleteCategory(category)} aria-label={`${category.name} 삭제`}>삭제</button>
-                </li>
-              ))}
-            </ul>
-            <button type="button" className="panel-utility-button" onClick={handleAddCategory}>카테고리 추가</button>
-          </details>
+
 
         </aside>
       </main>
