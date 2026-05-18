@@ -459,8 +459,8 @@ function App() {
 
   const monthTitle = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
   const selectedDateEvents = eventsByDate[formatDateKey(selectedDate)] ?? [];
-  const addFormCategories = categories.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === newEventCalendarId);
-  const editFormCategories = categories.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === editingEventCalendarId);
+  const addFormCategories = categories;
+  const editFormCategories = categories;
   const selectedLunarText = getLunarDateText(selectedDate, true);
   const selectedLunarDate = getLunarDate(selectedDate);
   const canAddLunarRepeat = selectedLunarDate !== null;
