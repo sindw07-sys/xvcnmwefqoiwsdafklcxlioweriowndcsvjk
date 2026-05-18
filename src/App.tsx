@@ -7,7 +7,8 @@ const STORAGE_KEY = 'uplog-events';
 const CATEGORY_STORAGE_KEY = 'uplog-categories';
 const CALENDAR_STORAGE_KEY = 'uplog-calendars';
 const CALENDAR_FILTER_STORAGE_KEY = 'uplog-calendar-filters';
-const DEFAULT_CATEGORY_ID = 'default-etc';
+const GIRLFRIEND_CALENDAR_ID = 'calendar-girlfriend';
+const FAMILY_CALENDAR_ID = 'calendar-family';
 const DEFAULT_CALENDAR_ID = 'calendar-me';
 
 type CalendarDay = {
@@ -193,17 +194,53 @@ const normalizeCalendar = (item: unknown): CalendarSpace | null => {
 
 const DEFAULT_CALENDARS: CalendarSpace[] = [
   { id: DEFAULT_CALENDAR_ID, name: '내 캘린더' },
-  { id: 'calendar-girlfriend', name: '여자친구' },
-  { id: 'calendar-family', name: '가족' },
+  { id: GIRLFRIEND_CALENDAR_ID, name: '여자친구' },
+  { id: FAMILY_CALENDAR_ID, name: '가족' },
 ];
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'default-personal', name: '개인', color: '#3b82f6' },
-  { id: 'default-family', name: '가족', color: '#8b5cf6' },
-  { id: 'default-hospital', name: '병원', color: '#0ea5a4' },
-  { id: 'default-anniversary', name: '기념일', color: '#f97316' },
-  { id: DEFAULT_CATEGORY_ID, name: '기타', color: '#64748b' },
+  { id: 'default-me-personal', name: '개인', color: '#3b82f6', calendarId: DEFAULT_CALENDAR_ID },
+  { id: 'default-me-work', name: '업무', color: '#8b5cf6', calendarId: DEFAULT_CALENDAR_ID },
+  { id: 'default-me-health', name: '건강', color: '#0ea5a4', calendarId: DEFAULT_CALENDAR_ID },
+  { id: 'default-me-etc', name: '기타', color: '#64748b', calendarId: DEFAULT_CALENDAR_ID },
+  { id: 'default-gf-date', name: '데이트', color: '#ec4899', calendarId: GIRLFRIEND_CALENDAR_ID },
+  { id: 'default-gf-anniversary', name: '기념일', color: '#f97316', calendarId: GIRLFRIEND_CALENDAR_ID },
+  { id: 'default-gf-travel', name: '여행', color: '#06b6d4', calendarId: GIRLFRIEND_CALENDAR_ID },
+  { id: 'default-gf-gift', name: '선물', color: '#eab308', calendarId: GIRLFRIEND_CALENDAR_ID },
+  { id: 'default-gf-etc', name: '기타', color: '#64748b', calendarId: GIRLFRIEND_CALENDAR_ID },
+  { id: 'default-family-hospital', name: '병원', color: '#ef4444', calendarId: FAMILY_CALENDAR_ID },
+  { id: 'default-family-event', name: '가족행사', color: '#22c55e', calendarId: FAMILY_CALENDAR_ID },
+  { id: 'default-family-home', name: '집안일', color: '#f59e0b', calendarId: FAMILY_CALENDAR_ID },
+  { id: 'default-family-etc', name: '기타', color: '#64748b', calendarId: FAMILY_CALENDAR_ID },
 ];
+
+
+const DEFAULT_CATEGORIES_BY_CALENDAR = DEFAULT_CATEGORIES.reduce<Record<string, Category[]>>((acc, category) => {
+  const calendarId = category.calendarId ?? DEFAULT_CALENDAR_ID;
+  if (!acc[calendarId]) {
+    acc[calendarId] = [];
+  }
+  acc[calendarId].push(category);
+  return acc;
+}, {});
+
+const getDefaultCategoryIdForCalendar = (calendarId: string) => {
+  const categories = DEFAULT_CATEGORIES_BY_CALENDAR[calendarId] ?? DEFAULT_CATEGORIES_BY_CALENDAR[DEFAULT_CALENDAR_ID] ?? [];
+  return categories.find((category) => category.name === '기타')?.id ?? categories[0]?.id ?? DEFAULT_CATEGORIES[0].id;
+};
+
+const ensureCalendarDefaultCategories = (source: Category[], calendars: CalendarSpace[]) => {
+  const next = [...source];
+  calendars.forEach((calendar) => {
+    const defaults = DEFAULT_CATEGORIES_BY_CALENDAR[calendar.id] ?? [];
+    if (defaults.length === 0) return;
+    const existing = next.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === calendar.id);
+    if (existing.length === 0) {
+      next.push(...defaults.map((category) => ({ ...category })));
+    }
+  });
+  return next;
+};
 
 const buildInitialEvents = (now: Date): Event[] => {
   const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -355,22 +392,24 @@ function App() {
   }, []);
 
   useEffect(() => {
+    setCategories((prev) => ensureCalendarDefaultCategories(
+      prev.map((category) => ({ ...category, calendarId: category.calendarId ?? DEFAULT_CALENDAR_ID })),
+      calendars,
+    ));
+  }, [calendars]);
+
+  useEffect(() => {
     setEvents((prev) =>
       prev.map((event) => {
-        if (event.categoryId && categoryById[event.categoryId]) return event;
-        const migratedCategoryId = categoryByColor[event.color.toLowerCase()] ?? DEFAULT_CATEGORY_ID;
-        return { ...event, categoryId: migratedCategoryId, calendarId: event.calendarId ?? DEFAULT_CALENDAR_ID };
+        const eventCalendarId = event.calendarId ?? DEFAULT_CALENDAR_ID;
+        if (event.categoryId && categoryById[event.categoryId]) {
+          return event.calendarId ? event : { ...event, calendarId: eventCalendarId };
+        }
+        const migratedCategoryId = categoryByColor[event.color.toLowerCase()] ?? getDefaultCategoryIdForCalendar(eventCalendarId);
+        return { ...event, categoryId: migratedCategoryId, calendarId: eventCalendarId };
       }),
     );
   }, [categoryByColor, categoryById]);
-  useEffect(() => {
-    setEvents((prev) => prev.map((event) => ({ ...event, calendarId: event.calendarId ?? DEFAULT_CALENDAR_ID })));
-  }, []);
-  useEffect(() => {
-    setCategories((prev) =>
-      prev.map((category) => ({ ...category, calendarId: category.calendarId ?? DEFAULT_CALENDAR_ID })),
-    );
-  }, []);
 
   const handleAddCategory = () => {
     const name = window.prompt('새 카테고리 이름을 입력해 주세요.');
@@ -378,7 +417,7 @@ function App() {
     const trimmed = name.trim();
     if (!trimmed) return;
     const color = window.prompt('카테고리 색상(#RRGGBB)을 입력해 주세요.', '#64748b')?.trim() || '#64748b';
-    setCategories((prev) => [...prev, { id: `category-${Date.now()}`, name: trimmed, color }]);
+    setCategories((prev) => [...prev, { id: `category-${Date.now()}`, name: trimmed, color, calendarId: newEventCalendarId }]);
   };
 
   const handleRenameCategory = (category: Category) => {
@@ -396,13 +435,13 @@ function App() {
   };
 
   const handleDeleteCategory = (category: Category) => {
-    if (category.id === DEFAULT_CATEGORY_ID) { window.alert('기타 카테고리는 삭제할 수 없습니다.'); return; }
+    if (category.name === '기타') { window.alert('기타 카테고리는 삭제할 수 없습니다.'); return; }
     const usedCount = events.filter((event) => event.categoryId === category.id).length;
     const message = usedCount > 0
       ? '이 카테고리를 사용하는 일정은 기타로 이동됩니다. 삭제할까요?'
       : '이 카테고리를 삭제할까요?';
     if (!window.confirm(message)) return;
-    setEvents((prev) => prev.map((event) => (event.categoryId === category.id ? { ...event, categoryId: DEFAULT_CATEGORY_ID } : event)));
+    setEvents((prev) => prev.map((event) => (event.categoryId === category.id ? { ...event, categoryId: getDefaultCategoryIdForCalendar(event.calendarId ?? DEFAULT_CALENDAR_ID) } : event)));
     setCategories((prev) => prev.filter((item) => item.id !== category.id));
   };
   const toggleCalendarFilter = (calendarId: string) => {
@@ -460,8 +499,8 @@ function App() {
 
   const monthTitle = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
   const selectedDateEvents = eventsByDate[formatDateKey(selectedDate)] ?? [];
-  const addFormCategories = categories;
-  const editFormCategories = categories;
+  const addFormCategories = useMemo(() => categories.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === newEventCalendarId), [categories, newEventCalendarId]);
+  const editFormCategories = useMemo(() => categories.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === editingEventCalendarId), [categories, editingEventCalendarId]);
   const selectedLunarText = getLunarDateText(selectedDate, true);
   const selectedLunarDate = getLunarDate(selectedDate);
   const canAddLunarRepeat = selectedLunarDate !== null;
@@ -484,8 +523,8 @@ function App() {
     setNewEventTitle('');
     setNewEventType('none');
     setNewEventMemo('');
-    setNewEventCategoryId(DEFAULT_CATEGORY_ID);
     setNewEventCalendarId(DEFAULT_CALENDAR_ID);
+    setNewEventCategoryId(getDefaultCategoryIdForCalendar(DEFAULT_CALENDAR_ID));
     setIsAddFormOpen(true);
   };
 
@@ -637,7 +676,7 @@ function App() {
     setEditingEventTitle(event.title);
     setEditingEventMemo(event.memo ?? '');
     setEditingEventType(event.repeatType);
-    setEditingEventCategoryId(event.categoryId ?? DEFAULT_CATEGORY_ID);
+    setEditingEventCategoryId(event.categoryId ?? getDefaultCategoryIdForCalendar(event.calendarId ?? DEFAULT_CALENDAR_ID));
     setEditingEventCalendarId(event.calendarId ?? DEFAULT_CALENDAR_ID);
   };
 
@@ -915,7 +954,7 @@ function App() {
                   const nextCalendarId = e.target.value;
                   setNewEventCalendarId(nextCalendarId);
                   const nextCategory = categories.find((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === nextCalendarId);
-                  setNewEventCategoryId(nextCategory?.id ?? DEFAULT_CATEGORY_ID);
+                  setNewEventCategoryId(nextCategory?.id ?? getDefaultCategoryIdForCalendar(nextCalendarId));
                 }}
               >
                 {calendars.map((calendar) => (
@@ -1003,7 +1042,7 @@ function App() {
                             const nextCalendarId = e.target.value;
                             setEditingEventCalendarId(nextCalendarId);
                             const nextCategory = categories.find((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === nextCalendarId);
-                            setEditingEventCategoryId(nextCategory?.id ?? DEFAULT_CATEGORY_ID);
+                            setEditingEventCategoryId(nextCategory?.id ?? getDefaultCategoryIdForCalendar(nextCalendarId));
                           }}
                         >
                           {calendars.map((calendar) => (
