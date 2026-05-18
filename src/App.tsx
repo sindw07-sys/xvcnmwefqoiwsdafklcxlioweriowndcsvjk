@@ -7,6 +7,7 @@ const STORAGE_KEY = 'uplog-events';
 const CATEGORY_STORAGE_KEY = 'uplog-categories';
 const CALENDAR_STORAGE_KEY = 'uplog-calendars';
 const CALENDAR_FILTER_STORAGE_KEY = 'uplog-calendar-filters';
+const ROUTINE_STORAGE_KEY = 'uplog-routines';
 const GIRLFRIEND_CALENDAR_ID = 'calendar-girlfriend';
 const FAMILY_CALENDAR_ID = 'calendar-family';
 const DEFAULT_CALENDAR_ID = 'calendar-me';
@@ -49,6 +50,20 @@ type CalendarSpace = {
 type LunarDate = {
   month: number;
   day: number;
+};
+
+type MainView = 'calendar' | 'routine';
+
+type Routine = {
+  id: string;
+  title: string;
+  calendarId: string;
+  categoryId: string;
+  daysOfWeek: number[];
+  startTime: string;
+  endTime: string;
+  memo?: string;
+  enabled: boolean;
 };
 
 type BackupPayload = {
@@ -190,6 +205,36 @@ const normalizeCalendar = (item: unknown): CalendarSpace | null => {
   const raw = item as Partial<CalendarSpace>;
   if (typeof raw.id !== 'string' || typeof raw.name !== 'string') return null;
   return { id: raw.id, name: raw.name };
+};
+
+const normalizeRoutine = (item: unknown): Routine | null => {
+  if (!item || typeof item !== 'object') return null;
+  const raw = item as Partial<Routine>;
+  if (
+    typeof raw.id !== 'string' ||
+    typeof raw.title !== 'string' ||
+    typeof raw.calendarId !== 'string' ||
+    typeof raw.categoryId !== 'string' ||
+    !Array.isArray(raw.daysOfWeek) ||
+    typeof raw.startTime !== 'string' ||
+    typeof raw.endTime !== 'string' ||
+    typeof raw.enabled !== 'boolean'
+  ) {
+    return null;
+  }
+  const daysOfWeek = raw.daysOfWeek.filter((day): day is number => typeof day === 'number' && day >= 0 && day <= 6);
+  if (daysOfWeek.length === 0) return null;
+  return {
+    id: raw.id,
+    title: raw.title,
+    calendarId: raw.calendarId,
+    categoryId: raw.categoryId,
+    daysOfWeek,
+    startTime: raw.startTime,
+    endTime: raw.endTime,
+    memo: typeof raw.memo === 'string' ? raw.memo : undefined,
+    enabled: raw.enabled,
+  };
 };
 
 const DEFAULT_CALENDARS: CalendarSpace[] = [
@@ -357,6 +402,26 @@ function App() {
   const [editingCategoryCalendarId, setEditingCategoryCalendarId] = useState(DEFAULT_CALENDAR_ID);
   const [newEventCalendarId, setNewEventCalendarId] = useState(DEFAULT_CALENDAR_ID);
   const [editingEventCalendarId, setEditingEventCalendarId] = useState(DEFAULT_CALENDAR_ID);
+  const [mainView, setMainView] = useState<MainView>('calendar');
+  const [routines, setRoutines] = useState<Routine[]>(() => {
+    const raw = localStorage.getItem(ROUTINE_STORAGE_KEY);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map(normalizeRoutine).filter((item): item is Routine => item !== null);
+    } catch {
+      return [];
+    }
+  });
+  const [isRoutineFormOpen, setIsRoutineFormOpen] = useState(false);
+  const [routineTitle, setRoutineTitle] = useState('');
+  const [routineCalendarId, setRoutineCalendarId] = useState(DEFAULT_CALENDAR_ID);
+  const [routineCategoryId, setRoutineCategoryId] = useState(getDefaultCategoryIdForCalendar(DEFAULT_CALENDAR_ID));
+  const [routineStartTime, setRoutineStartTime] = useState('09:00');
+  const [routineEndTime, setRoutineEndTime] = useState('10:00');
+  const [routineMemo, setRoutineMemo] = useState('');
+  const [routineDaysOfWeek, setRoutineDaysOfWeek] = useState<number[]>([]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
@@ -370,6 +435,9 @@ function App() {
   useEffect(() => {
     localStorage.setItem(CALENDAR_FILTER_STORAGE_KEY, JSON.stringify(selectedCalendarIds));
   }, [selectedCalendarIds]);
+  useEffect(() => {
+    localStorage.setItem(ROUTINE_STORAGE_KEY, JSON.stringify(routines));
+  }, [routines]);
   useEffect(() => {
     if (!calendars.some((calendar) => calendar.id === editingCategoryCalendarId)) {
       setEditingCategoryCalendarId(calendars[0]?.id ?? DEFAULT_CALENDAR_ID);
@@ -534,6 +602,17 @@ function App() {
   const selectedLunarText = getLunarDateText(selectedDate, true);
   const selectedLunarDate = getLunarDate(selectedDate);
   const canAddLunarRepeat = selectedLunarDate !== null;
+  const routineFormCategories = useMemo(
+    () => categories.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === routineCalendarId),
+    [categories, routineCalendarId],
+  );
+  const routinesByWeekDay = useMemo(() => {
+    return DAY_LABELS.map((_, dayIndex) =>
+      routines
+        .filter((routine) => routine.enabled && routine.daysOfWeek.includes(dayIndex))
+        .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+    );
+  }, [routines]);
 
   const goPrevMonth = () => {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -755,21 +834,62 @@ function App() {
     cancelEditEvent();
   };
 
+  const toggleRoutineDay = (day: number) => {
+    setRoutineDaysOfWeek((prev) => (prev.includes(day) ? prev.filter((value) => value !== day) : [...prev, day].sort((a, b) => a - b)));
+  };
+
+  const openRoutineForm = () => {
+    setRoutineTitle('');
+    setRoutineCalendarId(DEFAULT_CALENDAR_ID);
+    setRoutineCategoryId(getDefaultCategoryIdForCalendar(DEFAULT_CALENDAR_ID));
+    setRoutineStartTime('09:00');
+    setRoutineEndTime('10:00');
+    setRoutineMemo('');
+    setRoutineDaysOfWeek([]);
+    setIsRoutineFormOpen(true);
+  };
+
+  const closeRoutineForm = () => setIsRoutineFormOpen(false);
+
+  const handleAddRoutine = (e: FormEvent) => {
+    e.preventDefault();
+    if (!routineTitle.trim() || routineDaysOfWeek.length === 0) return;
+    const createdRoutine: Routine = {
+      id: `routine-${Date.now()}`,
+      title: routineTitle.trim(),
+      calendarId: routineCalendarId,
+      categoryId: routineCategoryId,
+      daysOfWeek: routineDaysOfWeek,
+      startTime: routineStartTime,
+      endTime: routineEndTime,
+      memo: routineMemo.trim() || undefined,
+      enabled: true,
+    };
+    setRoutines((prev) => [...prev, createdRoutine]);
+    closeRoutineForm();
+  };
+
   return (
     <div className="app-shell">
       <header className="calendar-header">
         <div className="brand-block">
           <h1>UpLog</h1>
-          <p className="brand-subtitle">Monthly Calendar</p>
+          <p className="brand-subtitle">{mainView === 'calendar' ? 'Monthly Calendar' : 'Weekly Routine Board'}</p>
         </div>
+        <div className="top-view-tabs" role="tablist" aria-label="메인 화면 전환">
+          <button type="button" role="tab" aria-selected={mainView === 'calendar'} className={`view-tab ${mainView === 'calendar' ? 'active' : ''}`} onClick={() => setMainView('calendar')}>캘린더</button>
+          <button type="button" role="tab" aria-selected={mainView === 'routine'} className={`view-tab ${mainView === 'routine' ? 'active' : ''}`} onClick={() => setMainView('routine')}>루틴</button>
+        </div>
+        {mainView === 'calendar' ? (
         <div className="month-controls" aria-label="월 이동 컨트롤">
           <button type="button" onClick={goPrevMonth} aria-label="이전 달" className="icon-button">◀</button>
           <p className="month-title" aria-live="polite" aria-label="현재 표시 중인 월">{monthTitle}</p>
           <button type="button" onClick={goNextMonth} aria-label="다음 달" className="icon-button">▶</button>
           <button type="button" onClick={goToday} className="today-button">오늘</button>
         </div>
+        ) : <div />}
       </header>
-
+      {mainView === 'calendar' ? (
       <main className="calendar-layout" aria-label="월간 캘린더와 선택 날짜 요약">
         <aside className="category-side-panel" aria-label="카테고리 관리 패널">
           <section className="panel-subsection">
@@ -1179,6 +1299,65 @@ function App() {
 
         </aside>
       </main>
+      ) : (
+        <main className="routine-layout" aria-label="주간 루틴 보드">
+          <section className="routine-board-card">
+            <div className="routine-board-header">
+              <h2>루틴 보드</h2>
+              <button type="button" className="panel-add-button" onClick={openRoutineForm}>루틴 추가</button>
+            </div>
+            {isRoutineFormOpen && (
+              <form className="add-event-form routine-form" onSubmit={handleAddRoutine}>
+                <label className="form-label" htmlFor="routine-title">제목</label>
+                <input id="routine-title" className="form-input" value={routineTitle} onChange={(e) => setRoutineTitle(e.target.value)} required />
+                <label className="form-label" htmlFor="routine-calendar">캘린더 선택</label>
+                <select id="routine-calendar" className="form-input" value={routineCalendarId} onChange={(e) => { const nextId = e.target.value; setRoutineCalendarId(nextId); setRoutineCategoryId(getDefaultCategoryIdForCalendar(nextId)); }}>
+                  {calendars.map((calendar) => <option key={calendar.id} value={calendar.id}>{calendar.name}</option>)}
+                </select>
+                <label className="form-label" htmlFor="routine-category">카테고리 선택</label>
+                <select id="routine-category" className="form-input" value={routineCategoryId} onChange={(e) => setRoutineCategoryId(e.target.value)}>
+                  {routineFormCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                </select>
+                <p className="form-label">요일 선택</p>
+                <div className="routine-day-picker">
+                  {DAY_LABELS.map((day, index) => (
+                    <button key={day} type="button" className={`routine-day-button ${routineDaysOfWeek.includes(index) ? 'selected' : ''}`} onClick={() => toggleRoutineDay(index)}>{day}</button>
+                  ))}
+                </div>
+                <label className="form-label" htmlFor="routine-start">시작 시간</label>
+                <input id="routine-start" type="time" className="form-input" value={routineStartTime} onChange={(e) => setRoutineStartTime(e.target.value)} required />
+                <label className="form-label" htmlFor="routine-end">종료 시간</label>
+                <input id="routine-end" type="time" className="form-input" value={routineEndTime} onChange={(e) => setRoutineEndTime(e.target.value)} required />
+                <label className="form-label" htmlFor="routine-memo">메모 선택</label>
+                <textarea id="routine-memo" className="form-input form-textarea" rows={3} value={routineMemo} onChange={(e) => setRoutineMemo(e.target.value)} />
+                <div className="form-actions">
+                  <button type="button" className="form-secondary" onClick={closeRoutineForm}>취소</button>
+                  <button type="submit" className="form-primary">저장</button>
+                </div>
+              </form>
+            )}
+            {routines.length === 0 ? (
+              <div className="panel-empty-state routine-empty"><p>아직 루틴 없음</p></div>
+            ) : (
+              <div className="routine-week-board">
+                {DAY_LABELS.map((day, dayIndex) => (
+                  <section key={day} className="routine-day-column">
+                    <h3>{day}</h3>
+                    <ul>
+                      {routinesByWeekDay[dayIndex].map((routine) => (
+                        <li key={routine.id} className="routine-card-item">
+                          <p className="routine-title">{routine.title}</p>
+                          <p className="routine-time">{routine.startTime} - {routine.endTime}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            )}
+          </section>
+        </main>
+      )}
 
       {pendingDeleteEventId && (
         <div className="confirm-modal-overlay" role="presentation" onClick={closeDeleteModal}>
