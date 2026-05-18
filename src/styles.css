@@ -137,6 +137,24 @@ button:active {
   color: #0f172a;
 }
 
+.calendar-filter-list {
+  list-style: none;
+  padding: 2px 0 8px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calendar-filter-item label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+}
+
 .calendar-card {
   min-width: 0;
   width: 100%;
