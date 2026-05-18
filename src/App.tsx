@@ -257,6 +257,7 @@ function App() {
   const [editingEventCategoryId, setEditingEventCategoryId] = useState('');
   const [activeMenuEventId, setActiveMenuEventId] = useState<string | null>(null);
   const [activeMenuCategoryId, setActiveMenuCategoryId] = useState<string | null>(null);
+  const [pendingDeleteEventId, setPendingDeleteEventId] = useState<string | null>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const actionMenuAreaRef = useRef<HTMLUListElement>(null);
   const categoryMenuAreaRef = useRef<HTMLUListElement>(null);
@@ -613,12 +614,20 @@ function App() {
 
   const handleDeleteEvent = (eventId: string) => {
     setActiveMenuEventId(null);
-    const shouldDelete = window.confirm('이 일정을 삭제할까요?');
-    if (!shouldDelete) {
+    setPendingDeleteEventId(eventId);
+  };
+
+  const closeDeleteModal = () => {
+    setPendingDeleteEventId(null);
+  };
+
+  const confirmDeleteEvent = () => {
+    if (!pendingDeleteEventId) {
       return;
     }
 
-    setEvents((prev) => prev.filter((event) => event.id !== eventId));
+    setEvents((prev) => prev.filter((event) => event.id !== pendingDeleteEventId));
+    closeDeleteModal();
   };
 
   const startEditEvent = (event: Event) => {
@@ -1083,6 +1092,26 @@ function App() {
 
         </aside>
       </main>
+
+      {pendingDeleteEventId && (
+        <div className="confirm-modal-overlay" role="presentation" onClick={closeDeleteModal}>
+          <div
+            className="confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-modal-title"
+            aria-describedby="delete-modal-description"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="delete-modal-title" className="confirm-modal-title">일정 삭제</h2>
+            <p id="delete-modal-description" className="confirm-modal-description">이 일정을 삭제할까요?</p>
+            <div className="confirm-modal-actions">
+              <button type="button" className="form-secondary" onClick={closeDeleteModal}>취소</button>
+              <button type="button" className="confirm-modal-danger" onClick={confirmDeleteEvent}>삭제</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
