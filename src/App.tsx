@@ -5,7 +5,10 @@ const WEEKDAY_NAMES = ['일요일', '월요일', '화요일', '수요일', '목�
 const MAX_EVENT_DOTS_IN_CELL = 4;
 const STORAGE_KEY = 'uplog-events';
 const CATEGORY_STORAGE_KEY = 'uplog-categories';
+const CALENDAR_STORAGE_KEY = 'uplog-calendars';
+const CALENDAR_FILTER_STORAGE_KEY = 'uplog-calendar-filters';
 const DEFAULT_CATEGORY_ID = 'default-etc';
+const DEFAULT_CALENDAR_ID = 'calendar-me';
 
 type CalendarDay = {
   date: Date;
@@ -27,12 +30,19 @@ type Event = {
   lunarMonth?: number;
   lunarDay?: number;
   categoryId?: string;
+  calendarId?: string;
 };
 
 type Category = {
   id: string;
   name: string;
   color: string;
+  calendarId?: string;
+};
+
+type CalendarSpace = {
+  id: string;
+  name: string;
 };
 
 type LunarDate = {
@@ -45,6 +55,7 @@ type BackupPayload = {
   exportedAt: string;
   events: Event[];
   categories?: Category[];
+  calendars?: CalendarSpace[];
 };
 
 const isSameDay = (a: Date, b: Date) =>
@@ -144,6 +155,7 @@ const normalizeEvent = (item: unknown): Event | null => {
   const lunarMonth = typeof raw.lunarMonth === 'number' ? raw.lunarMonth : undefined;
   const lunarDay = typeof raw.lunarDay === 'number' ? raw.lunarDay : undefined;
   const categoryId = typeof raw.categoryId === 'string' ? raw.categoryId : undefined;
+  const calendarId = typeof raw.calendarId === 'string' ? raw.calendarId : undefined;
 
   return {
     id: raw.id,
@@ -156,6 +168,7 @@ const normalizeEvent = (item: unknown): Event | null => {
     lunarMonth,
     lunarDay,
     categoryId,
+    calendarId,
   };
 };
 
@@ -167,8 +180,22 @@ const normalizeCategory = (item: unknown): Category | null => {
   if (typeof raw.id !== 'string' || typeof raw.name !== 'string' || typeof raw.color !== 'string') {
     return null;
   }
-  return { id: raw.id, name: raw.name, color: raw.color };
+  const calendarId = typeof raw.calendarId === 'string' ? raw.calendarId : undefined;
+  return { id: raw.id, name: raw.name, color: raw.color, calendarId };
 };
+
+const normalizeCalendar = (item: unknown): CalendarSpace | null => {
+  if (!item || typeof item !== 'object') return null;
+  const raw = item as Partial<CalendarSpace>;
+  if (typeof raw.id !== 'string' || typeof raw.name !== 'string') return null;
+  return { id: raw.id, name: raw.name };
+};
+
+const DEFAULT_CALENDARS: CalendarSpace[] = [
+  { id: DEFAULT_CALENDAR_ID, name: '내 캘린더' },
+  { id: 'calendar-girlfriend', name: '여자친구' },
+  { id: 'calendar-family', name: '가족' },
+];
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: 'default-personal', name: '개인', color: '#3b82f6' },
@@ -191,6 +218,7 @@ const buildInitialEvents = (now: Date): Event[] => {
       color: '#3b82f6',
       calendarType: 'solar',
       repeatType: 'none',
+      calendarId: DEFAULT_CALENDAR_ID,
     },
     {
       id: 'event-2',
@@ -199,6 +227,7 @@ const buildInitialEvents = (now: Date): Event[] => {
       color: '#8b5cf6',
       calendarType: 'solar',
       repeatType: 'none',
+      calendarId: DEFAULT_CALENDAR_ID,
     },
     {
       id: 'event-3',
@@ -207,6 +236,7 @@ const buildInitialEvents = (now: Date): Event[] => {
       color: '#0ea5a4',
       calendarType: 'solar',
       repeatType: 'none',
+      calendarId: DEFAULT_CALENDAR_ID,
     },
   ];
 };
@@ -263,6 +293,31 @@ function App() {
       return DEFAULT_CATEGORIES;
     }
   });
+  const [calendars, setCalendars] = useState<CalendarSpace[]>(() => {
+    const raw = localStorage.getItem(CALENDAR_STORAGE_KEY);
+    if (!raw) return DEFAULT_CALENDARS;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return DEFAULT_CALENDARS;
+      const normalized = parsed.map(normalizeCalendar).filter((item): item is CalendarSpace => item !== null);
+      return normalized.length > 0 ? normalized : DEFAULT_CALENDARS;
+    } catch {
+      return DEFAULT_CALENDARS;
+    }
+  });
+  const [selectedCalendarIds, setSelectedCalendarIds] = useState<string[]>(() => {
+    const raw = localStorage.getItem(CALENDAR_FILTER_STORAGE_KEY);
+    if (!raw) return DEFAULT_CALENDARS.map((calendar) => calendar.id);
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return DEFAULT_CALENDARS.map((calendar) => calendar.id);
+      return parsed.filter((item): item is string => typeof item === 'string');
+    } catch {
+      return DEFAULT_CALENDARS.map((calendar) => calendar.id);
+    }
+  });
+  const [newEventCalendarId, setNewEventCalendarId] = useState(DEFAULT_CALENDAR_ID);
+  const [editingEventCalendarId, setEditingEventCalendarId] = useState(DEFAULT_CALENDAR_ID);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
@@ -270,6 +325,12 @@ function App() {
   useEffect(() => {
     localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
   }, [categories]);
+  useEffect(() => {
+    localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(calendars));
+  }, [calendars]);
+  useEffect(() => {
+    localStorage.setItem(CALENDAR_FILTER_STORAGE_KEY, JSON.stringify(selectedCalendarIds));
+  }, [selectedCalendarIds]);
 
   const categoryById = useMemo(() => {
     return categories.reduce<Record<string, Category>>((acc, category) => {
@@ -277,6 +338,11 @@ function App() {
       return acc;
     }, {});
   }, [categories]);
+
+  const calendarById = useMemo(() => calendars.reduce<Record<string, CalendarSpace>>((acc, calendar) => {
+    acc[calendar.id] = calendar;
+    return acc;
+  }, {}), [calendars]);
 
   const getEventColor = (event: Event) => categoryById[event.categoryId ?? '']?.color ?? event.color;
 
@@ -292,10 +358,18 @@ function App() {
       prev.map((event) => {
         if (event.categoryId && categoryById[event.categoryId]) return event;
         const migratedCategoryId = categoryByColor[event.color.toLowerCase()] ?? DEFAULT_CATEGORY_ID;
-        return { ...event, categoryId: migratedCategoryId };
+        return { ...event, categoryId: migratedCategoryId, calendarId: event.calendarId ?? DEFAULT_CALENDAR_ID };
       }),
     );
   }, [categoryByColor, categoryById]);
+  useEffect(() => {
+    setEvents((prev) => prev.map((event) => ({ ...event, calendarId: event.calendarId ?? DEFAULT_CALENDAR_ID })));
+  }, []);
+  useEffect(() => {
+    setCategories((prev) =>
+      prev.map((category) => ({ ...category, calendarId: category.calendarId ?? DEFAULT_CALENDAR_ID })),
+    );
+  }, []);
 
   const handleAddCategory = () => {
     const name = window.prompt('새 카테고리 이름을 입력해 주세요.');
@@ -330,6 +404,15 @@ function App() {
     setEvents((prev) => prev.map((event) => (event.categoryId === category.id ? { ...event, categoryId: DEFAULT_CATEGORY_ID } : event)));
     setCategories((prev) => prev.filter((item) => item.id !== category.id));
   };
+  const toggleCalendarFilter = (calendarId: string) => {
+    setSelectedCalendarIds((prev) => {
+      if (prev.includes(calendarId)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((id) => id !== calendarId);
+      }
+      return [...prev, calendarId];
+    });
+  };
 
 
   useEffect(() => {
@@ -348,12 +431,17 @@ function App() {
 
   const monthCells = useMemo(() => createMonthGrid(currentMonth), [currentMonth]);
 
+  const filteredEvents = useMemo(
+    () => events.filter((event) => selectedCalendarIds.includes(event.calendarId ?? DEFAULT_CALENDAR_ID)),
+    [events, selectedCalendarIds],
+  );
+
   const eventsByDate = useMemo(() => {
     return monthCells.reduce<Record<string, Event[]>>((acc, cell) => {
       const dateKey = formatDateKey(cell.date);
       const lunarDate = getLunarDate(cell.date);
 
-      const matchedEvents = events.filter((event) => {
+      const matchedEvents = filteredEvents.filter((event) => {
         if (event.repeatType === 'lunar-yearly') {
           return Boolean(lunarDate && event.lunarMonth === lunarDate.month && event.lunarDay === lunarDate.day);
         }
@@ -367,10 +455,12 @@ function App() {
 
       return acc;
     }, {});
-  }, [events, monthCells]);
+  }, [filteredEvents, monthCells]);
 
   const monthTitle = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
   const selectedDateEvents = eventsByDate[formatDateKey(selectedDate)] ?? [];
+  const addFormCategories = categories.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === newEventCalendarId);
+  const editFormCategories = categories.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === editingEventCalendarId);
   const selectedLunarText = getLunarDateText(selectedDate, true);
   const selectedLunarDate = getLunarDate(selectedDate);
   const canAddLunarRepeat = selectedLunarDate !== null;
@@ -394,6 +484,7 @@ function App() {
     setNewEventType('none');
     setNewEventMemo('');
     setNewEventCategoryId(DEFAULT_CATEGORY_ID);
+    setNewEventCalendarId(DEFAULT_CALENDAR_ID);
     setIsAddFormOpen(true);
   };
 
@@ -427,6 +518,7 @@ function App() {
       lunarMonth: newEventType === 'lunar-yearly' ? selectedLunarDate?.month : undefined,
       lunarDay: newEventType === 'lunar-yearly' ? selectedLunarDate?.day : undefined,
       categoryId: newEventCategoryId,
+      calendarId: newEventCalendarId,
     };
 
     setEvents((prev) => [...prev, createdEvent]);
@@ -440,6 +532,7 @@ function App() {
       exportedAt: new Date().toISOString(),
       events,
       categories,
+      calendars,
     };
 
     const jsonText = JSON.stringify(backupData, null, 2);
@@ -488,8 +581,12 @@ function App() {
       }
 
       const categorySource = Array.isArray(parsed) ? undefined : parsed.categories;
+      const calendarSource = Array.isArray(parsed) ? undefined : parsed.calendars;
       const normalizedCategories = Array.isArray(categorySource)
         ? categorySource.map(normalizeCategory).filter((item): item is Category => item !== null)
+        : null;
+      const normalizedCalendars = Array.isArray(calendarSource)
+        ? calendarSource.map(normalizeCalendar).filter((item): item is CalendarSpace => item !== null)
         : null;
 
       const shouldRestore = window.confirm('백업을 가져오면 현재 일정이 백업 내용으로 덮어써집니다. 복원할까요?');
@@ -503,6 +600,9 @@ function App() {
       const nextCategories = normalizedCategories && normalizedCategories.length > 0 ? normalizedCategories : DEFAULT_CATEGORIES;
       setCategories(nextCategories);
       localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(nextCategories));
+      const nextCalendars = normalizedCalendars && normalizedCalendars.length > 0 ? normalizedCalendars : DEFAULT_CALENDARS;
+      setCalendars(nextCalendars);
+      localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(nextCalendars));
       window.alert('백업 가져오기가 완료되었습니다.');
     } catch {
       window.alert('백업 파일을 읽을 수 없습니다. JSON 파일인지 확인해 주세요.');
@@ -529,6 +629,7 @@ function App() {
     setEditingEventMemo(event.memo ?? '');
     setEditingEventType(event.repeatType);
     setEditingEventCategoryId(event.categoryId ?? DEFAULT_CATEGORY_ID);
+    setEditingEventCalendarId(event.calendarId ?? DEFAULT_CALENDAR_ID);
   };
 
   const cancelEditEvent = () => {
@@ -537,6 +638,7 @@ function App() {
     setEditingEventMemo('');
     setEditingEventType('none');
     setEditingEventCategoryId('');
+    setEditingEventCalendarId(DEFAULT_CALENDAR_ID);
   };
 
   const handleEditEvent = (e: FormEvent, baseEvent: Event) => {
@@ -568,6 +670,7 @@ function App() {
           lunarMonth: editingEventType === 'lunar-yearly' ? selectedLunarDate?.month ?? event.lunarMonth : undefined,
           lunarDay: editingEventType === 'lunar-yearly' ? selectedLunarDate?.day ?? event.lunarDay : undefined,
           categoryId: editingEventCategoryId,
+          calendarId: editingEventCalendarId,
         };
       }),
     );
@@ -591,6 +694,21 @@ function App() {
 
       <main className="calendar-layout" aria-label="월간 캘린더와 선택 날짜 요약">
         <aside className="category-side-panel" aria-label="카테고리 관리 패널">
+          <h2 className="category-panel-title">캘린더 공간</h2>
+          <ul className="calendar-filter-list">
+            {calendars.map((calendar) => (
+              <li key={calendar.id} className="calendar-filter-item">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={selectedCalendarIds.includes(calendar.id)}
+                    onChange={() => toggleCalendarFilter(calendar.id)}
+                  />
+                  <span>{calendar.name}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
           <h2 className="category-panel-title">카테고리 관리</h2>
           <ul className="category-list" ref={categoryMenuAreaRef}>
             {categories.map((category) => (
@@ -779,6 +897,23 @@ function App() {
                 <p className="form-warning">현재 브라우저에서는 음력 변환을 지원하지 않아 음력 반복 저장을 사용할 수 없습니다.</p>
               )}
 
+              <label htmlFor="new-event-calendar" className="form-label">캘린더</label>
+              <select
+                id="new-event-calendar"
+                className="form-input"
+                value={newEventCalendarId}
+                onChange={(e) => {
+                  const nextCalendarId = e.target.value;
+                  setNewEventCalendarId(nextCalendarId);
+                  const nextCategory = categories.find((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === nextCalendarId);
+                  setNewEventCategoryId(nextCategory?.id ?? DEFAULT_CATEGORY_ID);
+                }}
+              >
+                {calendars.map((calendar) => (
+                  <option key={calendar.id} value={calendar.id}>{calendar.name}</option>
+                ))}
+              </select>
+
               <label htmlFor="new-event-category" className="form-label">카테고리</label>
               <select
                 id="new-event-category"
@@ -786,7 +921,7 @@ function App() {
                 value={newEventCategoryId}
                 onChange={(e) => setNewEventCategoryId(e.target.value)}
               >
-                {categories.map((category) => (
+                {addFormCategories.map((category) => (
                   <option key={category.id} value={category.id}>{category.name}</option>
                 ))}
               </select>
@@ -850,6 +985,23 @@ function App() {
                           <p className="form-helper">반복 기준: 음력 {selectedLunarDate.month}.{selectedLunarDate.day}</p>
                         )}
 
+                        <label htmlFor={`edit-event-calendar-${event.id}`} className="form-label">캘린더</label>
+                        <select
+                          id={`edit-event-calendar-${event.id}`}
+                          className="form-input"
+                          value={editingEventCalendarId}
+                          onChange={(e) => {
+                            const nextCalendarId = e.target.value;
+                            setEditingEventCalendarId(nextCalendarId);
+                            const nextCategory = categories.find((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === nextCalendarId);
+                            setEditingEventCategoryId(nextCategory?.id ?? DEFAULT_CATEGORY_ID);
+                          }}
+                        >
+                          {calendars.map((calendar) => (
+                            <option key={calendar.id} value={calendar.id}>{calendar.name}</option>
+                          ))}
+                        </select>
+
                         <label htmlFor={`edit-event-category-${event.id}`} className="form-label">카테고리</label>
                         <select
                           id={`edit-event-category-${event.id}`}
@@ -857,7 +1009,7 @@ function App() {
                           value={editingEventCategoryId}
                           onChange={(e) => setEditingEventCategoryId(e.target.value)}
                         >
-                                    {categories.map((category) => (
+                                    {editFormCategories.map((category) => (
                             <option key={category.id} value={category.id}>{category.name}</option>
                           ))}
                         </select>
@@ -877,6 +1029,9 @@ function App() {
                         )}
                         {event.categoryId && categoryById[event.categoryId] && (
                           <span className="panel-event-meta">{categoryById[event.categoryId].name}</span>
+                        )}
+                        {event.calendarId && calendarById[event.calendarId] && (
+                          <span className="panel-event-meta">캘린더: {calendarById[event.calendarId].name}</span>
                         )}
                       </>
                     )}
