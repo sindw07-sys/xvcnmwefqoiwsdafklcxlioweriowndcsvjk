@@ -354,6 +354,7 @@ function App() {
       return DEFAULT_CALENDARS.map((calendar) => calendar.id);
     }
   });
+  const [editingCategoryCalendarId, setEditingCategoryCalendarId] = useState(DEFAULT_CALENDAR_ID);
   const [newEventCalendarId, setNewEventCalendarId] = useState(DEFAULT_CALENDAR_ID);
   const [editingEventCalendarId, setEditingEventCalendarId] = useState(DEFAULT_CALENDAR_ID);
 
@@ -369,6 +370,11 @@ function App() {
   useEffect(() => {
     localStorage.setItem(CALENDAR_FILTER_STORAGE_KEY, JSON.stringify(selectedCalendarIds));
   }, [selectedCalendarIds]);
+  useEffect(() => {
+    if (!calendars.some((calendar) => calendar.id === editingCategoryCalendarId)) {
+      setEditingCategoryCalendarId(calendars[0]?.id ?? DEFAULT_CALENDAR_ID);
+    }
+  }, [calendars, editingCategoryCalendarId]);
 
   const categoryById = useMemo(() => {
     return categories.reduce<Record<string, Category>>((acc, category) => {
@@ -417,7 +423,7 @@ function App() {
     const trimmed = name.trim();
     if (!trimmed) return;
     const color = window.prompt('카테고리 색상(#RRGGBB)을 입력해 주세요.', '#64748b')?.trim() || '#64748b';
-    setCategories((prev) => [...prev, { id: `category-${Date.now()}`, name: trimmed, color, calendarId: newEventCalendarId }]);
+    setCategories((prev) => [...prev, { id: `category-${Date.now()}`, name: trimmed, color, calendarId: editingCategoryCalendarId }]);
   };
 
   const handleRenameCategory = (category: Category) => {
@@ -501,6 +507,10 @@ function App() {
   const selectedDateEvents = eventsByDate[formatDateKey(selectedDate)] ?? [];
   const addFormCategories = useMemo(() => categories.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === newEventCalendarId), [categories, newEventCalendarId]);
   const editFormCategories = useMemo(() => categories.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === editingEventCalendarId), [categories, editingEventCalendarId]);
+  const categoryManagementCategories = useMemo(
+    () => categories.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === editingCategoryCalendarId),
+    [categories, editingCategoryCalendarId],
+  );
   const selectedLunarText = getLunarDateText(selectedDate, true);
   const selectedLunarDate = getLunarDate(selectedDate);
   const canAddLunarRepeat = selectedLunarDate !== null;
@@ -758,8 +768,21 @@ function App() {
             ))}
           </ul>
           <h2 className="category-panel-title">카테고리 관리</h2>
+          <label htmlFor="category-edit-calendar-select" className="form-label">편집할 캘린더</label>
+          <select
+            id="category-edit-calendar-select"
+            className="form-input category-edit-calendar-select"
+            value={editingCategoryCalendarId}
+            onChange={(event) => setEditingCategoryCalendarId(event.target.value)}
+          >
+            {calendars.map((calendar) => (
+              <option key={calendar.id} value={calendar.id}>
+                {calendar.name}
+              </option>
+            ))}
+          </select>
           <ul className="category-list" ref={categoryMenuAreaRef}>
-            {categories.map((category) => (
+            {categoryManagementCategories.map((category) => (
               <li key={category.id} className="category-item">
                 <span className="panel-event-dot" style={{ backgroundColor: category.color }} aria-hidden="true" />
                 <span className="category-name">{category.name}</span>
