@@ -483,20 +483,40 @@ function App() {
   );
 
   const eventsByDate = useMemo(() => {
+    const solarEventsMap = filteredEvents.reduce<Record<string, Event[]>>((acc, event) => {
+      if (event.repeatType !== 'lunar-yearly') {
+        if (!acc[event.date]) {
+          acc[event.date] = [];
+        }
+        acc[event.date].push(event);
+      }
+      return acc;
+    }, {});
+
+    const lunarRepeatEvents = filteredEvents.filter((event) => event.repeatType === 'lunar-yearly');
+
+    if (lunarRepeatEvents.length === 0) {
+      return monthCells.reduce<Record<string, Event[]>>((acc, cell) => {
+        const dateKey = formatDateKey(cell.date);
+        const solarEvents = solarEventsMap[dateKey];
+        if (solarEvents?.length) {
+          acc[dateKey] = solarEvents;
+        }
+        return acc;
+      }, {});
+    }
+
     return monthCells.reduce<Record<string, Event[]>>((acc, cell) => {
       const dateKey = formatDateKey(cell.date);
+      const solarEvents = solarEventsMap[dateKey] ?? [];
       const lunarDate = getLunarDate(cell.date);
+      const lunarEvents = lunarDate
+        ? lunarRepeatEvents.filter((event) => event.lunarMonth === lunarDate.month && event.lunarDay === lunarDate.day)
+        : [];
+      const mergedEvents = solarEvents.length > 0 ? [...solarEvents, ...lunarEvents] : lunarEvents;
 
-      const matchedEvents = filteredEvents.filter((event) => {
-        if (event.repeatType === 'lunar-yearly') {
-          return Boolean(lunarDate && event.lunarMonth === lunarDate.month && event.lunarDay === lunarDate.day);
-        }
-
-        return event.date === dateKey;
-      });
-
-      if (matchedEvents.length > 0) {
-        acc[dateKey] = matchedEvents;
+      if (mergedEvents.length > 0) {
+        acc[dateKey] = mergedEvents;
       }
 
       return acc;
@@ -752,7 +772,8 @@ function App() {
 
       <main className="calendar-layout" aria-label="월간 캘린더와 선택 날짜 요약">
         <aside className="category-side-panel" aria-label="카테고리 관리 패널">
-          <h2 className="category-panel-title">캘린더 공간</h2>
+          <section className="panel-subsection">
+            <h2 className="category-panel-title">캘린더 공간</h2>
           <ul className="calendar-filter-list">
             {calendars.map((calendar) => (
               <li key={calendar.id} className="calendar-filter-item">
@@ -767,7 +788,10 @@ function App() {
               </li>
             ))}
           </ul>
-          <h2 className="category-panel-title">카테고리 관리</h2>
+          </section>
+
+          <section className="panel-subsection">
+            <h2 className="category-panel-title">카테고리 관리</h2>
           <label htmlFor="category-edit-calendar-select" className="form-label">편집할 캘린더</label>
           <select
             id="category-edit-calendar-select"
@@ -842,6 +866,7 @@ function App() {
             ))}
           </ul>
           <button type="button" className="panel-utility-button" onClick={handleAddCategory}>카테고리 추가</button>
+          </section>
         </aside>
 
         <section className="calendar-card" aria-label="월간 캘린더">
