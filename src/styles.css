@@ -130,37 +130,81 @@ button:active {
   align-items: start;
 }
 .routine-layout {
+  display: block;
+}
+.routine-workspace {
+  width: min(1180px, 100%);
+  margin: 0 auto;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: 14px;
+}
+.routine-workspace-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 2px 2px 6px;
+}
+.routine-heading h2 {
+  margin: 2px 0 0;
+  font-size: clamp(1.35rem, 1.15rem + 0.8vw, 1.8rem);
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+.routine-overline {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.routine-description {
+  margin: 8px 0 0;
+  font-size: 0.92rem;
+  color: #475569;
+  line-height: 1.55;
+}
+.routine-primary-cta {
+  min-width: 124px;
+  padding: 11px 18px;
+  border-radius: 12px;
+  border: 1px solid #c7dcff;
+  background: linear-gradient(180deg, #eff6ff 0%, #e1efff 100%);
+  color: #1e3a8a;
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.16);
+}
+.routine-primary-cta:hover {
+  background: linear-gradient(180deg, #e5f0ff 0%, #d7e9ff 100%);
+  border-color: #b5d1ff;
+  box-shadow: 0 12px 24px rgba(59, 130, 246, 0.2);
 }
 .routine-board-card {
-  width: min(1100px, 100%);
+  width: 100%;
   border-radius: var(--panel-radius);
-  border: 1px solid #e6eaf3;
+  border: 1px solid #e8eef7;
   background: #fff;
-  padding: clamp(16px, 2vw, 22px);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-}
-.routine-board-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 14px;
+  padding: clamp(14px, 1.8vw, 24px);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.07);
 }
 .routine-week-board {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 .routine-day-column {
   background: #f8fbff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 10px;
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.2);
 }
 .routine-day-column h3 {
-  margin: 0 0 8px;
-  font-size: 0.95rem;
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #334155;
 }
 .routine-day-column ul {
   margin: 0;
@@ -172,18 +216,21 @@ button:active {
 }
 .routine-card-item {
   background: #fff;
-  border: 1px solid #dbe5f3;
   border-radius: 10px;
-  padding: 8px;
+  padding: 10px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
 }
 .routine-title {
   margin: 0;
   font-weight: 700;
+  color: #111827;
+  line-height: 1.35;
 }
 .routine-time {
   margin: 4px 0 0;
   color: #475569;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 .routine-day-picker {
   display: grid;
@@ -200,10 +247,41 @@ button:active {
   border-color: #93c5fd;
 }
 .routine-form {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
-.routine-empty {
-  min-height: 260px;
+.routine-empty-state {
+  min-height: 280px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f8fbff 0%, #f3f8ff 100%);
+  box-shadow: inset 0 0 0 1px rgba(191, 219, 254, 0.48);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 10px;
+  padding: clamp(20px, 3vw, 34px);
+}
+.routine-empty-title {
+  margin: 0;
+  font-size: clamp(1.05rem, 1rem + 0.3vw, 1.2rem);
+  font-weight: 700;
+  color: #0f172a;
+}
+.routine-empty-description {
+  margin: 0;
+  max-width: 560px;
+  color: #475569;
+  line-height: 1.6;
+}
+.routine-empty-action {
+  margin-top: 4px;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #cddcf4;
+  background: #fff;
+  color: #1e293b;
+  font-weight: 700;
 }
 
 
@@ -602,6 +680,10 @@ button:active {
     max-width: none;
     width: 100%;
   }
+
+  .routine-week-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
@@ -624,6 +706,24 @@ button:active {
 
   .day-cell {
     padding: 7px;
+  }
+
+  .routine-workspace-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .routine-primary-cta {
+    width: 100%;
+  }
+
+  .routine-board-card {
+    padding: 12px;
+  }
+
+  .routine-week-board {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 }
 

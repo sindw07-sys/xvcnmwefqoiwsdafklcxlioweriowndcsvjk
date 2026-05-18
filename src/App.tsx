@@ -1301,11 +1301,16 @@ function App() {
       </main>
       ) : (
         <main className="routine-layout" aria-label="주간 루틴 보드">
-          <section className="routine-board-card">
-            <div className="routine-board-header">
-              <h2>루틴 보드</h2>
-              <button type="button" className="panel-add-button" onClick={openRoutineForm}>루틴 추가</button>
+          <section className="routine-workspace">
+            <div className="routine-workspace-header">
+              <div className="routine-heading">
+                <p className="routine-overline">Weekly Routine Board</p>
+                <h2>루틴 보드</h2>
+                <p className="routine-description">매주 반복되는 일정을 한눈에 관리하세요.</p>
+              </div>
+              <button type="button" className="routine-primary-cta" onClick={openRoutineForm}>루틴 추가</button>
             </div>
+            <section className="routine-board-card">
             {isRoutineFormOpen && (
               <form className="add-event-form routine-form" onSubmit={handleAddRoutine}>
                 <label className="form-label" htmlFor="routine-title">제목</label>
@@ -1337,7 +1342,11 @@ function App() {
               </form>
             )}
             {routines.length === 0 ? (
-              <div className="panel-empty-state routine-empty"><p>아직 루틴 없음</p></div>
+              <div className="routine-empty-state">
+                <p className="routine-empty-title">아직 등록된 루틴이 없어요</p>
+                <p className="routine-empty-description">출근, 알바, 운동처럼 반복되는 일정을 루틴으로 저장해보세요.</p>
+                <button type="button" className="routine-empty-action" onClick={openRoutineForm}>첫 루틴 추가하기</button>
+              </div>
             ) : (
               <div className="routine-week-board">
                 {DAY_LABELS.map((day, dayIndex) => (
@@ -1355,6 +1364,7 @@ function App() {
                 ))}
               </div>
             )}
+            </section>
           </section>
         </main>
       )}
