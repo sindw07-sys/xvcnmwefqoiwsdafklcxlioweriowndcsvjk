@@ -726,6 +726,10 @@ button:active {
   gap: 6px;
 }
 
+.category-edit-calendar-select {
+  margin-bottom: 4px;
+}
+
 .category-item {
   display: flex;
   align-items: center;
