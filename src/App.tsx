@@ -8,6 +8,7 @@ const CATEGORY_STORAGE_KEY = 'uplog-categories';
 const CALENDAR_STORAGE_KEY = 'uplog-calendars';
 const CALENDAR_FILTER_STORAGE_KEY = 'uplog-calendar-filters';
 const ROUTINE_STORAGE_KEY = 'uplog-routines';
+const ROUTINE_COMPLETIONS_STORAGE_KEY = 'uplog-routine-completions';
 const GIRLFRIEND_CALENDAR_ID = 'calendar-girlfriend';
 const FAMILY_CALENDAR_ID = 'calendar-family';
 const DEFAULT_CALENDAR_ID = 'calendar-me';
@@ -415,6 +416,22 @@ function App() {
       return [];
     }
   });
+  const [routineCompletions, setRoutineCompletions] = useState<Record<string, boolean>>(() => {
+    const raw = localStorage.getItem(ROUTINE_COMPLETIONS_STORAGE_KEY);
+    if (!raw) return {};
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return {};
+      return Object.entries(parsed).reduce<Record<string, boolean>>((acc, [key, value]) => {
+        if (typeof value === 'boolean') {
+          acc[key] = value;
+        }
+        return acc;
+      }, {});
+    } catch {
+      return {};
+    }
+  });
   const [isRoutineFormOpen, setIsRoutineFormOpen] = useState(false);
   const [routineTitle, setRoutineTitle] = useState('');
   const [routineCalendarId, setRoutineCalendarId] = useState(DEFAULT_CALENDAR_ID);
@@ -449,6 +466,9 @@ function App() {
   useEffect(() => {
     localStorage.setItem(ROUTINE_STORAGE_KEY, JSON.stringify(routines));
   }, [routines]);
+  useEffect(() => {
+    localStorage.setItem(ROUTINE_COMPLETIONS_STORAGE_KEY, JSON.stringify(routineCompletions));
+  }, [routineCompletions]);
   useEffect(() => {
     if (!routineFeedback) return;
     const timeout = window.setTimeout(() => setRoutineFeedback(''), 1800);
@@ -620,7 +640,8 @@ function App() {
   }, [filteredEvents, monthCells]);
 
   const monthTitle = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
-  const selectedDateEvents = eventsByDate[formatDateKey(selectedDate)] ?? [];
+  const selectedDateKey = formatDateKey(selectedDate);
+  const selectedDateEvents = eventsByDate[selectedDateKey] ?? [];
   const addFormCategories = useMemo(() => categories.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === newEventCalendarId), [categories, newEventCalendarId]);
   const editFormCategories = useMemo(() => categories.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === editingEventCalendarId), [categories, editingEventCalendarId]);
   const categoryManagementCategories = useMemo(
@@ -635,6 +656,16 @@ function App() {
     [categories, routineCalendarId],
   );
   const sortedRoutines = useMemo(() => [...routines].sort((a, b) => a.startTime.localeCompare(b.startTime)), [routines]);
+  const selectedDateRoutines = useMemo(
+    () =>
+      sortedRoutines.filter(
+        (routine) =>
+          routine.enabled &&
+          selectedCalendarIds.includes(routine.calendarId) &&
+          routine.daysOfWeek.includes(selectedDate.getDay()),
+      ),
+    [selectedCalendarIds, selectedDate, sortedRoutines],
+  );
 
   const goPrevMonth = () => {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -926,6 +957,14 @@ function App() {
   const handleToggleRoutineEnabled = (routineId: string) => {
     setRoutines((prev) => prev.map((routine) => (routine.id === routineId ? { ...routine, enabled: !routine.enabled } : routine)));
     setRoutineFeedback('루틴 상태가 변경되었습니다.');
+  };
+  const handleToggleRoutineCompletion = (routineId: string) => {
+    const completionKey = `${selectedDateKey}:${routineId}`;
+    setRoutineCompletions((prev) => {
+      const nextValue = !prev[completionKey];
+      setRoutineFeedback(nextValue ? '루틴을 완료했어요.' : '루틴 완료를 해제했어요.');
+      return { ...prev, [completionKey]: nextValue };
+    });
   };
 
   return (
@@ -1376,6 +1415,40 @@ function App() {
               })}
             </ul>
           )}
+          <section className="panel-routine-section" aria-label="오늘의 루틴">
+            <p className="panel-subtitle">오늘의 루틴</p>
+            {selectedDateRoutines.length === 0 ? (
+              <div className="panel-routine-empty">
+                <p>해당 날짜에 적용되는 루틴 없음</p>
+              </div>
+            ) : (
+              <ul className="panel-routine-list">
+                {selectedDateRoutines.map((routine) => {
+                  const category = categoryById[routine.categoryId];
+                  const calendar = calendarById[routine.calendarId];
+                  const completionKey = `${selectedDateKey}:${routine.id}`;
+                  const isCompleted = Boolean(routineCompletions[completionKey]);
+                  return (
+                    <li key={routine.id} className={`panel-routine-item ${isCompleted ? 'completed' : ''}`.trim()}>
+                      <label className="panel-routine-main">
+                        <input type="checkbox" checked={isCompleted} onChange={() => handleToggleRoutineCompletion(routine.id)} aria-label={`${routine.title} 완료`} />
+                        <div className="panel-routine-content">
+                          <span className="panel-routine-title">{routine.title}</span>
+                          <span className="panel-routine-time">{routine.startTime} - {routine.endTime}</span>
+                          <span className="panel-routine-meta">캘린더: {calendar?.name ?? '-'}</span>
+                          <span className="panel-routine-meta">
+                            <span className="panel-routine-category-dot" style={{ backgroundColor: category?.color ?? '#94a3b8' }} aria-hidden="true" />
+                            카테고리: {category?.name ?? '-'}
+                          </span>
+                          {routine.memo && <span className="panel-routine-memo">{routine.memo}</span>}
+                        </div>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
 
 
 
