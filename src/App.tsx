@@ -74,6 +74,7 @@ type BackupPayload = {
   categories?: Category[];
   calendars?: CalendarSpace[];
   routines?: Routine[];
+  routineCompletions?: Record<string, boolean>;
 };
 
 const isSameDay = (a: Date, b: Date) =>
@@ -736,6 +737,7 @@ function App() {
       categories,
       calendars,
       routines,
+      routineCompletions,
     };
 
     const jsonText = JSON.stringify(backupData, null, 2);
@@ -795,6 +797,15 @@ function App() {
       const normalizedRoutines = Array.isArray(routineSource)
         ? routineSource.map(normalizeRoutine).filter((item): item is Routine => item !== null)
         : null;
+      const completionSource = Array.isArray(parsed) ? undefined : parsed.routineCompletions;
+      const normalizedRoutineCompletions = completionSource && typeof completionSource === 'object'
+        ? Object.entries(completionSource).reduce<Record<string, boolean>>((acc, [key, value]) => {
+          if (typeof key === 'string' && typeof value === 'boolean') {
+            acc[key] = value;
+          }
+          return acc;
+        }, {})
+        : {};
 
       const shouldRestore = window.confirm('백업을 가져오면 현재 일정이 백업 내용으로 덮어써집니다. 복원할까요?');
       if (!shouldRestore) {
@@ -813,6 +824,8 @@ function App() {
       const nextRoutines = normalizedRoutines ?? [];
       setRoutines(nextRoutines);
       localStorage.setItem(ROUTINE_STORAGE_KEY, JSON.stringify(nextRoutines));
+      setRoutineCompletions(normalizedRoutineCompletions);
+      localStorage.setItem(ROUTINE_COMPLETIONS_STORAGE_KEY, JSON.stringify(normalizedRoutineCompletions));
       window.alert('백업 가져오기가 완료되었습니다.');
     } catch {
       window.alert('백업 파일을 읽을 수 없습니다. JSON 파일인지 확인해 주세요.');
@@ -962,8 +975,12 @@ function App() {
     const completionKey = `${selectedDateKey}:${routineId}`;
     setRoutineCompletions((prev) => {
       const nextValue = !prev[completionKey];
-      setRoutineFeedback(nextValue ? '루틴을 완료했어요.' : '루틴 완료를 해제했어요.');
-      return { ...prev, [completionKey]: nextValue };
+      setRoutineFeedback(nextValue ? '루틴을 완료했습니다.' : '루틴 완료를 해제했습니다.');
+      if (nextValue) {
+        return { ...prev, [completionKey]: true };
+      }
+      const { [completionKey]: _removed, ...rest } = prev;
+      return rest;
     });
   };
 
