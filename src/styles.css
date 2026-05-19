@@ -983,6 +983,41 @@ button:active {
 .category-action-menu {
   min-width: 124px;
 }
+.category-inline-edit,
+.category-add-form {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+.category-color-input {
+  width: 36px;
+  height: 32px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  padding: 2px;
+  background: #fff;
+}
+.panel-utility-button.compact {
+  min-height: 32px;
+  padding: 6px 10px;
+}
+.panel-utility-button.secondary {
+  background: #fff;
+  color: #334155;
+}
+.category-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 6px;
+}
+.category-feedback {
+  margin: 4px 0 6px;
+  color: #334155;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
 
 .confirm-modal-overlay {
   position: fixed;

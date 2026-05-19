@@ -425,6 +425,14 @@ function App() {
   const [routineDaysOfWeek, setRoutineDaysOfWeek] = useState<number[]>([]);
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const [routineFeedback, setRoutineFeedback] = useState('');
+  const [categoryFeedback, setCategoryFeedback] = useState('');
+  const [isCategoryAddFormOpen, setIsCategoryAddFormOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryColor, setNewCategoryColor] = useState('#64748b');
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [editingCategoryColor, setEditingCategoryColor] = useState('#64748b');
+  const [pendingDeleteCategoryId, setPendingDeleteCategoryId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
@@ -446,6 +454,11 @@ function App() {
     const timeout = window.setTimeout(() => setRoutineFeedback(''), 1800);
     return () => window.clearTimeout(timeout);
   }, [routineFeedback]);
+  useEffect(() => {
+    if (!categoryFeedback) return;
+    const timeout = window.setTimeout(() => setCategoryFeedback(''), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [categoryFeedback]);
   useEffect(() => {
     if (!calendars.some((calendar) => calendar.id === editingCategoryCalendarId)) {
       setEditingCategoryCalendarId(calendars[0]?.id ?? DEFAULT_CALENDAR_ID);
@@ -493,38 +506,45 @@ function App() {
     );
   }, [categoryByColor, categoryById]);
 
-  const handleAddCategory = () => {
-    const name = window.prompt('새 카테고리 이름을 입력해 주세요.');
-    if (!name) return;
-    const trimmed = name.trim();
+  const handleOpenCategoryAddForm = () => {
+    setIsCategoryAddFormOpen(true);
+    setNewCategoryName('');
+    setNewCategoryColor('#64748b');
+  };
+  const handleSaveNewCategory = () => {
+    const trimmed = newCategoryName.trim();
     if (!trimmed) return;
-    const color = window.prompt('카테고리 색상(#RRGGBB)을 입력해 주세요.', '#64748b')?.trim() || '#64748b';
-    setCategories((prev) => [...prev, { id: `category-${Date.now()}`, name: trimmed, color, calendarId: editingCategoryCalendarId }]);
+    setCategories((prev) => [...prev, { id: `category-${Date.now()}`, name: trimmed, color: newCategoryColor, calendarId: editingCategoryCalendarId }]);
+    setIsCategoryAddFormOpen(false);
+    setCategoryFeedback('카테고리가 추가되었습니다.');
   };
-
-  const handleRenameCategory = (category: Category) => {
-    const name = window.prompt('카테고리 이름 수정', category.name);
-    if (!name) return;
-    const trimmed = name.trim();
+  const startInlineCategoryEdit = (category: Category) => {
+    setEditingCategoryId(category.id);
+    setEditingCategoryName(category.name);
+    setEditingCategoryColor(category.color);
+  };
+  const cancelInlineCategoryEdit = () => setEditingCategoryId(null);
+  const saveInlineCategoryEdit = () => {
+    if (!editingCategoryId) return;
+    const trimmed = editingCategoryName.trim();
     if (!trimmed) return;
-    setCategories((prev) => prev.map((item) => (item.id === category.id ? { ...item, name: trimmed } : item)));
+    setCategories((prev) => prev.map((item) => (item.id === editingCategoryId ? { ...item, name: trimmed, color: editingCategoryColor } : item)));
+    cancelInlineCategoryEdit();
+    setCategoryFeedback('카테고리가 수정되었습니다.');
   };
-
-  const handleRecolorCategory = (category: Category) => {
-    const color = window.prompt('카테고리 색상 수정(#RRGGBB)', category.color)?.trim();
-    if (!color) return;
-    setCategories((prev) => prev.map((item) => (item.id === category.id ? { ...item, color } : item)));
+  const requestDeleteCategory = (category: Category) => {
+    if (category.name === '기타') {
+      setCategoryFeedback('기타 카테고리는 삭제할 수 없습니다.');
+      return;
+    }
+    setPendingDeleteCategoryId(category.id);
   };
-
-  const handleDeleteCategory = (category: Category) => {
-    if (category.name === '기타') { window.alert('기타 카테고리는 삭제할 수 없습니다.'); return; }
-    const usedCount = events.filter((event) => event.categoryId === category.id).length;
-    const message = usedCount > 0
-      ? '이 카테고리를 사용하는 일정은 기타로 이동됩니다. 삭제할까요?'
-      : '이 카테고리를 삭제할까요?';
-    if (!window.confirm(message)) return;
-    setEvents((prev) => prev.map((event) => (event.categoryId === category.id ? { ...event, categoryId: getDefaultCategoryIdForCalendar(event.calendarId ?? DEFAULT_CALENDAR_ID) } : event)));
-    setCategories((prev) => prev.filter((item) => item.id !== category.id));
+  const confirmDeleteCategory = () => {
+    if (!pendingDeleteCategoryId) return;
+    setEvents((prev) => prev.map((event) => (event.categoryId === pendingDeleteCategoryId ? { ...event, categoryId: getDefaultCategoryIdForCalendar(event.calendarId ?? DEFAULT_CALENDAR_ID) } : event)));
+    setCategories((prev) => prev.filter((item) => item.id !== pendingDeleteCategoryId));
+    setPendingDeleteCategoryId(null);
+    setCategoryFeedback('카테고리가 삭제되었습니다.');
   };
   const toggleCalendarFilter = (calendarId: string) => {
     setSelectedCalendarIds((prev) => {
@@ -967,8 +987,19 @@ function App() {
           <ul className="category-list" ref={categoryMenuAreaRef}>
             {categoryManagementCategories.map((category) => (
               <li key={category.id} className="category-item">
-                <span className="panel-event-dot" style={{ backgroundColor: category.color }} aria-hidden="true" />
-                <span className="category-name">{category.name}</span>
+                {editingCategoryId === category.id ? (
+                  <div className="category-inline-edit">
+                    <input className="form-input" value={editingCategoryName} onChange={(event) => setEditingCategoryName(event.target.value)} placeholder="카테고리 이름" />
+                    <input type="color" className="category-color-input" value={editingCategoryColor} onChange={(event) => setEditingCategoryColor(event.target.value)} />
+                    <button type="button" className="panel-utility-button compact" onClick={saveInlineCategoryEdit}>저장</button>
+                    <button type="button" className="panel-utility-button compact secondary" onClick={cancelInlineCategoryEdit}>취소</button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="panel-event-dot" style={{ backgroundColor: category.color }} aria-hidden="true" />
+                    <span className="category-name">{category.name}</span>
+                  </>
+                )}
                 <div className="panel-event-actions">
                   <button
                     type="button"
@@ -991,7 +1022,7 @@ function App() {
                         role="menuitem"
                         onClick={() => {
                           setActiveMenuCategoryId(null);
-                          handleRenameCategory(category);
+                          startInlineCategoryEdit(category);
                         }}
                       >
                         이름 수정
@@ -1002,7 +1033,7 @@ function App() {
                         role="menuitem"
                         onClick={() => {
                           setActiveMenuCategoryId(null);
-                          handleRecolorCategory(category);
+                          startInlineCategoryEdit(category);
                         }}
                       >
                         색상 수정
@@ -1013,7 +1044,7 @@ function App() {
                         role="menuitem"
                         onClick={() => {
                           setActiveMenuCategoryId(null);
-                          handleDeleteCategory(category);
+                          requestDeleteCategory(category);
                         }}
                       >
                         삭제
@@ -1024,7 +1055,19 @@ function App() {
               </li>
             ))}
           </ul>
-          <button type="button" className="panel-utility-button" onClick={handleAddCategory}>카테고리 추가</button>
+          {categoryFeedback ? <p className="category-feedback">{categoryFeedback}</p> : null}
+          {isCategoryAddFormOpen ? (
+            <div className="category-add-form">
+              <input className="form-input" value={newCategoryName} onChange={(event) => setNewCategoryName(event.target.value)} placeholder="카테고리 이름" />
+              <input type="color" className="category-color-input" value={newCategoryColor} onChange={(event) => setNewCategoryColor(event.target.value)} />
+              <div className="category-form-actions">
+                <button type="button" className="panel-utility-button compact" onClick={handleSaveNewCategory}>저장</button>
+                <button type="button" className="panel-utility-button compact secondary" onClick={() => setIsCategoryAddFormOpen(false)}>취소</button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" className="panel-utility-button" onClick={handleOpenCategoryAddForm}>카테고리 추가</button>
+          )}
           </section>
         </aside>
 
@@ -1431,6 +1474,18 @@ function App() {
             <div className="confirm-modal-actions">
               <button type="button" className="form-secondary" onClick={closeDeleteModal}>취소</button>
               <button type="button" className="confirm-modal-danger" onClick={confirmDeleteEvent}>삭제</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {pendingDeleteCategoryId && (
+        <div className="confirm-modal-overlay" role="presentation" onClick={() => setPendingDeleteCategoryId(null)}>
+          <div className="confirm-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <h2 className="confirm-modal-title">카테고리 삭제</h2>
+            <p className="confirm-modal-description">이 카테고리를 삭제할까요? 이 카테고리를 사용하는 일정은 기타로 이동됩니다.</p>
+            <div className="confirm-modal-actions">
+              <button type="button" className="form-secondary" onClick={() => setPendingDeleteCategoryId(null)}>취소</button>
+              <button type="button" className="confirm-modal-danger" onClick={confirmDeleteCategory}>삭제</button>
             </div>
           </div>
         </div>
