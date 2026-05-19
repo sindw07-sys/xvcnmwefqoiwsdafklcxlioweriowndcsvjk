@@ -72,6 +72,7 @@ type BackupPayload = {
   events: Event[];
   categories?: Category[];
   calendars?: CalendarSpace[];
+  routines?: Routine[];
 };
 
 const isSameDay = (a: Date, b: Date) =>
@@ -422,6 +423,8 @@ function App() {
   const [routineEndTime, setRoutineEndTime] = useState('10:00');
   const [routineMemo, setRoutineMemo] = useState('');
   const [routineDaysOfWeek, setRoutineDaysOfWeek] = useState<number[]>([]);
+  const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
+  const [routineFeedback, setRoutineFeedback] = useState('');
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
@@ -438,6 +441,11 @@ function App() {
   useEffect(() => {
     localStorage.setItem(ROUTINE_STORAGE_KEY, JSON.stringify(routines));
   }, [routines]);
+  useEffect(() => {
+    if (!routineFeedback) return;
+    const timeout = window.setTimeout(() => setRoutineFeedback(''), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [routineFeedback]);
   useEffect(() => {
     if (!calendars.some((calendar) => calendar.id === editingCategoryCalendarId)) {
       setEditingCategoryCalendarId(calendars[0]?.id ?? DEFAULT_CALENDAR_ID);
@@ -606,13 +614,7 @@ function App() {
     () => categories.filter((category) => (category.calendarId ?? DEFAULT_CALENDAR_ID) === routineCalendarId),
     [categories, routineCalendarId],
   );
-  const routinesByWeekDay = useMemo(() => {
-    return DAY_LABELS.map((_, dayIndex) =>
-      routines
-        .filter((routine) => routine.enabled && routine.daysOfWeek.includes(dayIndex))
-        .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-    );
-  }, [routines]);
+  const sortedRoutines = useMemo(() => [...routines].sort((a, b) => a.startTime.localeCompare(b.startTime)), [routines]);
 
   const goPrevMonth = () => {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -682,6 +684,7 @@ function App() {
       events,
       categories,
       calendars,
+      routines,
     };
 
     const jsonText = JSON.stringify(backupData, null, 2);
@@ -731,11 +734,15 @@ function App() {
 
       const categorySource = Array.isArray(parsed) ? undefined : parsed.categories;
       const calendarSource = Array.isArray(parsed) ? undefined : parsed.calendars;
+      const routineSource = Array.isArray(parsed) ? undefined : parsed.routines;
       const normalizedCategories = Array.isArray(categorySource)
         ? categorySource.map(normalizeCategory).filter((item): item is Category => item !== null)
         : null;
       const normalizedCalendars = Array.isArray(calendarSource)
         ? calendarSource.map(normalizeCalendar).filter((item): item is CalendarSpace => item !== null)
+        : null;
+      const normalizedRoutines = Array.isArray(routineSource)
+        ? routineSource.map(normalizeRoutine).filter((item): item is Routine => item !== null)
         : null;
 
       const shouldRestore = window.confirm('백업을 가져오면 현재 일정이 백업 내용으로 덮어써집니다. 복원할까요?');
@@ -752,6 +759,9 @@ function App() {
       const nextCalendars = normalizedCalendars && normalizedCalendars.length > 0 ? normalizedCalendars : DEFAULT_CALENDARS;
       setCalendars(nextCalendars);
       localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(nextCalendars));
+      const nextRoutines = normalizedRoutines ?? [];
+      setRoutines(nextRoutines);
+      localStorage.setItem(ROUTINE_STORAGE_KEY, JSON.stringify(nextRoutines));
       window.alert('백업 가져오기가 완료되었습니다.');
     } catch {
       window.alert('백업 파일을 읽을 수 없습니다. JSON 파일인지 확인해 주세요.');
@@ -839,6 +849,7 @@ function App() {
   };
 
   const openRoutineForm = () => {
+    setEditingRoutineId(null);
     setRoutineTitle('');
     setRoutineCalendarId(DEFAULT_CALENDAR_ID);
     setRoutineCategoryId(getDefaultCategoryIdForCalendar(DEFAULT_CALENDAR_ID));
@@ -854,8 +865,8 @@ function App() {
   const handleAddRoutine = (e: FormEvent) => {
     e.preventDefault();
     if (!routineTitle.trim() || routineDaysOfWeek.length === 0) return;
-    const createdRoutine: Routine = {
-      id: `routine-${Date.now()}`,
+    const nextRoutine: Routine = {
+      id: editingRoutineId ?? `routine-${Date.now()}`,
       title: routineTitle.trim(),
       calendarId: routineCalendarId,
       categoryId: routineCategoryId,
@@ -865,8 +876,36 @@ function App() {
       memo: routineMemo.trim() || undefined,
       enabled: true,
     };
-    setRoutines((prev) => [...prev, createdRoutine]);
+    if (editingRoutineId) {
+      setRoutines((prev) => prev.map((routine) => (routine.id === editingRoutineId ? { ...nextRoutine, enabled: routine.enabled } : routine)));
+      setRoutineFeedback('루틴이 수정되었습니다.');
+    } else {
+      setRoutines((prev) => [...prev, nextRoutine]);
+      setRoutineFeedback('루틴이 저장되었습니다.');
+    }
     closeRoutineForm();
+  };
+
+  const handleEditRoutine = (routine: Routine) => {
+    setEditingRoutineId(routine.id);
+    setRoutineTitle(routine.title);
+    setRoutineCalendarId(routine.calendarId);
+    setRoutineCategoryId(routine.categoryId);
+    setRoutineStartTime(routine.startTime);
+    setRoutineEndTime(routine.endTime);
+    setRoutineMemo(routine.memo ?? '');
+    setRoutineDaysOfWeek(routine.daysOfWeek);
+    setIsRoutineFormOpen(true);
+  };
+
+  const handleDeleteRoutine = (routineId: string) => {
+    setRoutines((prev) => prev.filter((routine) => routine.id !== routineId));
+    setRoutineFeedback('루틴이 삭제되었습니다.');
+  };
+
+  const handleToggleRoutineEnabled = (routineId: string) => {
+    setRoutines((prev) => prev.map((routine) => (routine.id === routineId ? { ...routine, enabled: !routine.enabled } : routine)));
+    setRoutineFeedback('루틴 상태가 변경되었습니다.');
   };
 
   return (
@@ -1349,21 +1388,29 @@ function App() {
               </div>
             ) : (
               <div className="routine-week-board">
-                {DAY_LABELS.map((day, dayIndex) => (
-                  <section key={day} className="routine-day-column">
-                    <h3>{day}</h3>
-                    <ul>
-                      {routinesByWeekDay[dayIndex].map((routine) => (
-                        <li key={routine.id} className="routine-card-item">
-                          <p className="routine-title">{routine.title}</p>
-                          <p className="routine-time">{routine.startTime} - {routine.endTime}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
+                {sortedRoutines.map((routine) => (
+                  <article key={routine.id} className={`routine-card-item ${routine.enabled ? '' : 'disabled'}`.trim()}>
+                    <div className="routine-card-top">
+                      <p className="routine-title">{routine.title}</p>
+                      <span className="routine-enabled-badge">{routine.enabled ? '사용중' : '꺼짐'}</span>
+                    </div>
+                    <div className="routine-day-badges">
+                      {routine.daysOfWeek.map((day) => <span key={`${routine.id}-${day}`} className="routine-day-chip">{DAY_LABELS[day]}</span>)}
+                    </div>
+                    <p className="routine-time">{routine.startTime} - {routine.endTime}</p>
+                    <p className="routine-meta">캘린더: {calendarById[routine.calendarId]?.name ?? '-'}</p>
+                    <p className="routine-meta">카테고리: {categoryById[routine.categoryId]?.name ?? '-'}</p>
+                    {routine.memo && <p className="routine-memo">{routine.memo}</p>}
+                    <div className="routine-card-actions">
+                      <button type="button" className="form-secondary" onClick={() => handleToggleRoutineEnabled(routine.id)}>{routine.enabled ? '끄기' : '켜기'}</button>
+                      <button type="button" className="form-secondary" onClick={() => handleEditRoutine(routine)}>수정</button>
+                      <button type="button" className="confirm-modal-danger" onClick={() => handleDeleteRoutine(routine.id)}>삭제</button>
+                    </div>
+                  </article>
                 ))}
               </div>
             )}
+            {routineFeedback && <p className="routine-feedback">{routineFeedback}</p>}
             </section>
           </section>
         </main>
