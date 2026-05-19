@@ -67,6 +67,10 @@ type Routine = {
   enabled: boolean;
 };
 
+type DailyTimelineItem =
+  | { id: string; type: 'event'; sortTime: string; event: Event }
+  | { id: string; type: 'routine'; sortTime: string; routine: Routine; isCompleted: boolean };
+
 type BackupPayload = {
   version: number;
   exportedAt: string;
@@ -677,6 +681,33 @@ function App() {
       ),
     [selectedCalendarIds, selectedDate, sortedRoutines],
   );
+  const selectedDateTimelineItems = useMemo<DailyTimelineItem[]>(() => {
+    const eventItems: DailyTimelineItem[] = selectedDateEvents.map((event) => ({
+      id: `event-${event.id}`,
+      type: 'event',
+      sortTime: '00:00',
+      event,
+    }));
+    const routineItems: DailyTimelineItem[] = selectedDateRoutines.map((routine) => {
+      const completionKey = `${selectedDateKey}:${routine.id}`;
+      return {
+        id: `routine-${routine.id}`,
+        type: 'routine',
+        sortTime: routine.startTime,
+        routine,
+        isCompleted: Boolean(routineCompletions[completionKey]),
+      };
+    });
+    return [...eventItems, ...routineItems].sort((a, b) => {
+      if (a.sortTime === b.sortTime) {
+        if (a.type === b.type) {
+          return a.id.localeCompare(b.id);
+        }
+        return a.type === 'routine' ? -1 : 1;
+      }
+      return a.sortTime.localeCompare(b.sortTime);
+    });
+  }, [routineCompletions, selectedDateEvents, selectedDateKey, selectedDateRoutines]);
 
   const goPrevMonth = () => {
     setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -1309,17 +1340,47 @@ function App() {
             </form>
           )}
 
-          {selectedDateEvents.length === 0 ? (
-            <div className="panel-empty-state">
-              <p>아직 일정 없음</p>
-            </div>
-          ) : (
-            <ul className="panel-event-list" aria-label="선택 날짜 일정 목록" ref={actionMenuAreaRef}>
-              {selectedDateEvents.map((event) => {
+          <section className="panel-timeline-section" aria-label="오늘의 흐름">
+            <p className="panel-subtitle">오늘의 흐름</p>
+            {selectedDateTimelineItems.length === 0 ? (
+              <div className="panel-empty-state">
+                <p>등록된 일정과 루틴이 없습니다.</p>
+              </div>
+            ) : (
+              <ul className="panel-event-list panel-timeline-list" aria-label="선택 날짜 타임라인" ref={actionMenuAreaRef}>
+                {selectedDateTimelineItems.map((timelineItem) => {
+                  if (timelineItem.type === 'routine') {
+                    const { routine, isCompleted } = timelineItem;
+                    const category = categoryById[routine.categoryId];
+                    const calendar = calendarById[routine.calendarId];
+                    return (
+                      <li key={timelineItem.id} className={`panel-timeline-item panel-routine-item ${isCompleted ? 'completed' : ''}`.trim()}>
+                        <div className="panel-timeline-time">{routine.startTime}</div>
+                        <label className="panel-routine-main">
+                          <input type="checkbox" checked={isCompleted} onChange={() => handleToggleRoutineCompletion(routine.id)} aria-label={`${routine.title} 완료`} />
+                          <div className="panel-routine-content">
+                            <div className="panel-timeline-head">
+                              <span className="panel-routine-title">{routine.title}</span>
+                              <span className="panel-type-badge routine">루틴</span>
+                            </div>
+                            <span className="panel-routine-time">{routine.startTime} - {routine.endTime}</span>
+                            <span className="panel-routine-meta">캘린더: {calendar?.name ?? '-'}</span>
+                            <span className="panel-routine-meta">
+                              <span className="panel-routine-category-dot" style={{ backgroundColor: category?.color ?? '#94a3b8' }} aria-hidden="true" />
+                              카테고리: {category?.name ?? '-'}
+                            </span>
+                            {routine.memo && <span className="panel-routine-memo">{routine.memo}</span>}
+                          </div>
+                        </label>
+                      </li>
+                    );
+                  }
+                  const { event } = timelineItem;
                 const isEditing = editingEventId === event.id;
 
                 return (
-                <li key={event.id} className={`panel-event-item ${isEditing ? 'is-editing' : ''}`.trim()}>
+                <li key={event.id} className={`panel-timeline-item panel-event-item ${isEditing ? 'is-editing' : ''}`.trim()}>
+                  {!isEditing && <div className="panel-timeline-time">종일</div>}
                   {!isEditing && <span className="panel-event-dot" style={{ backgroundColor: getEventColor(event) }} aria-hidden="true" />}
                   <div className="panel-event-content">
                     {isEditing ? (
@@ -1397,7 +1458,10 @@ function App() {
                       </form>
                     ) : (
                       <>
-                        <span className="panel-event-title">{event.title}</span>
+                        <div className="panel-timeline-head">
+                          <span className="panel-event-title">{event.title}</span>
+                          <span className="panel-type-badge event">일정</span>
+                        </div>
                         {event.memo && <p className="panel-event-memo">{event.memo}</p>}
                         {event.repeatType === 'lunar-yearly' && event.lunarMonth && event.lunarDay && (
                           <span className="panel-event-meta">음력 {event.lunarMonth}.{event.lunarDay} 반복</span>
@@ -1453,39 +1517,6 @@ function App() {
               })}
             </ul>
           )}
-          <section className="panel-routine-section" aria-label="오늘의 루틴">
-            <p className="panel-subtitle">오늘의 루틴</p>
-            {selectedDateRoutines.length === 0 ? (
-              <div className="panel-routine-empty">
-                <p>해당 날짜에 적용되는 루틴 없음</p>
-              </div>
-            ) : (
-              <ul className="panel-routine-list">
-                {selectedDateRoutines.map((routine) => {
-                  const category = categoryById[routine.categoryId];
-                  const calendar = calendarById[routine.calendarId];
-                  const completionKey = `${selectedDateKey}:${routine.id}`;
-                  const isCompleted = Boolean(routineCompletions[completionKey]);
-                  return (
-                    <li key={routine.id} className={`panel-routine-item ${isCompleted ? 'completed' : ''}`.trim()}>
-                      <label className="panel-routine-main">
-                        <input type="checkbox" checked={isCompleted} onChange={() => handleToggleRoutineCompletion(routine.id)} aria-label={`${routine.title} 완료`} />
-                        <div className="panel-routine-content">
-                          <span className="panel-routine-title">{routine.title}</span>
-                          <span className="panel-routine-time">{routine.startTime} - {routine.endTime}</span>
-                          <span className="panel-routine-meta">캘린더: {calendar?.name ?? '-'}</span>
-                          <span className="panel-routine-meta">
-                            <span className="panel-routine-category-dot" style={{ backgroundColor: category?.color ?? '#94a3b8' }} aria-hidden="true" />
-                            카테고리: {category?.name ?? '-'}
-                          </span>
-                          {routine.memo && <span className="panel-routine-memo">{routine.memo}</span>}
-                        </div>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
           </section>
 
 
