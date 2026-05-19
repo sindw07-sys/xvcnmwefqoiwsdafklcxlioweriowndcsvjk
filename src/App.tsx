@@ -77,6 +77,14 @@ type BackupPayload = {
   routineCompletions?: Record<string, boolean>;
 };
 
+type ParsedBackupData = {
+  events: Event[];
+  categories: Category[] | null;
+  calendars: CalendarSpace[] | null;
+  routines: Routine[] | null;
+  routineCompletions: Record<string, boolean>;
+};
+
 const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&
@@ -343,6 +351,8 @@ function App() {
   const [activeMenuEventId, setActiveMenuEventId] = useState<string | null>(null);
   const [activeMenuCategoryId, setActiveMenuCategoryId] = useState<string | null>(null);
   const [pendingDeleteEventId, setPendingDeleteEventId] = useState<string | null>(null);
+  const [pendingImportData, setPendingImportData] = useState<ParsedBackupData | null>(null);
+  const [backupFeedback, setBackupFeedback] = useState('');
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const actionMenuAreaRef = useRef<HTMLUListElement>(null);
   const categoryMenuAreaRef = useRef<HTMLUListElement>(null);
@@ -752,6 +762,7 @@ function App() {
     anchor.click();
     document.body.removeChild(anchor);
     URL.revokeObjectURL(url);
+    setBackupFeedback('백업 내보내기가 완료되었습니다.');
   };
 
   const handleClickRestoreButton = () => {
@@ -772,7 +783,7 @@ function App() {
       const eventsSource = Array.isArray(parsed) ? parsed : parsed.events;
 
       if (!eventsSource || !Array.isArray(eventsSource)) {
-        window.alert('백업 파일 형식이 올바르지 않습니다. events 배열이 필요합니다.');
+        setBackupFeedback('백업 파일을 읽을 수 없습니다. JSON 파일인지 확인해 주세요.');
         target.value = '';
         return;
       }
@@ -780,7 +791,7 @@ function App() {
       const normalizedEvents = eventsSource.map(normalizeEvent).filter((item): item is Event => item !== null);
 
       if (normalizedEvents.length !== eventsSource.length) {
-        window.alert('일부 일정 데이터 형식이 올바르지 않아 복원할 수 없습니다.');
+        setBackupFeedback('백업 파일을 읽을 수 없습니다. JSON 파일인지 확인해 주세요.');
         target.value = '';
         return;
       }
@@ -807,31 +818,42 @@ function App() {
         }, {})
         : {};
 
-      const shouldRestore = window.confirm('백업을 가져오면 현재 일정이 백업 내용으로 덮어써집니다. 복원할까요?');
-      if (!shouldRestore) {
-        target.value = '';
-        return;
-      }
-
-      setEvents(normalizedEvents);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedEvents));
-      const nextCategories = normalizedCategories && normalizedCategories.length > 0 ? normalizedCategories : DEFAULT_CATEGORIES;
-      setCategories(nextCategories);
-      localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(nextCategories));
-      const nextCalendars = normalizedCalendars && normalizedCalendars.length > 0 ? normalizedCalendars : DEFAULT_CALENDARS;
-      setCalendars(nextCalendars);
-      localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(nextCalendars));
-      const nextRoutines = normalizedRoutines ?? [];
-      setRoutines(nextRoutines);
-      localStorage.setItem(ROUTINE_STORAGE_KEY, JSON.stringify(nextRoutines));
-      setRoutineCompletions(normalizedRoutineCompletions);
-      localStorage.setItem(ROUTINE_COMPLETIONS_STORAGE_KEY, JSON.stringify(normalizedRoutineCompletions));
-      window.alert('백업 가져오기가 완료되었습니다.');
+      setPendingImportData({
+        events: normalizedEvents,
+        categories: normalizedCategories,
+        calendars: normalizedCalendars,
+        routines: normalizedRoutines,
+        routineCompletions: normalizedRoutineCompletions,
+      });
     } catch {
-      window.alert('백업 파일을 읽을 수 없습니다. JSON 파일인지 확인해 주세요.');
+      setBackupFeedback('백업 파일을 읽을 수 없습니다. JSON 파일인지 확인해 주세요.');
     } finally {
       target.value = '';
     }
+  };
+
+  const closeImportConfirmModal = () => {
+    setPendingImportData(null);
+  };
+
+  const confirmImportBackup = () => {
+    if (!pendingImportData) return;
+    const nextCategories = pendingImportData.categories && pendingImportData.categories.length > 0 ? pendingImportData.categories : DEFAULT_CATEGORIES;
+    const nextCalendars = pendingImportData.calendars && pendingImportData.calendars.length > 0 ? pendingImportData.calendars : DEFAULT_CALENDARS;
+    const nextRoutines = pendingImportData.routines ?? [];
+
+    setEvents(pendingImportData.events);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(pendingImportData.events));
+    setCategories(nextCategories);
+    localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(nextCategories));
+    setCalendars(nextCalendars);
+    localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(nextCalendars));
+    setRoutines(nextRoutines);
+    localStorage.setItem(ROUTINE_STORAGE_KEY, JSON.stringify(nextRoutines));
+    setRoutineCompletions(pendingImportData.routineCompletions);
+    localStorage.setItem(ROUTINE_COMPLETIONS_STORAGE_KEY, JSON.stringify(pendingImportData.routineCompletions));
+    setBackupFeedback('백업 가져오기가 완료되었습니다.');
+    closeImportConfirmModal();
   };
 
   const handleDeleteEvent = (eventId: string) => {
@@ -1125,6 +1147,23 @@ function App() {
             <button type="button" className="panel-utility-button" onClick={handleOpenCategoryAddForm}>카테고리 추가</button>
           )}
           </section>
+          <section className="panel-section data-management-section" aria-label="데이터 관리">
+            <h3>데이터 관리</h3>
+            <div className="panel-backup-actions">
+              <button type="button" className="panel-utility-button" onClick={handleExportBackup}>백업 내보내기</button>
+              <button type="button" className="panel-utility-button" onClick={handleClickRestoreButton}>백업 가져오기</button>
+            </div>
+            {backupFeedback ? <p className="backup-feedback">{backupFeedback}</p> : null}
+            <input
+              ref={restoreInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="sr-only-file-input"
+              onChange={handleImportBackup}
+              aria-label="백업 파일 선택"
+              tabIndex={-1}
+            />
+          </section>
         </aside>
 
         <section className="calendar-card" aria-label="월간 캘린더">
@@ -1189,24 +1228,6 @@ function App() {
           <button type="button" className="panel-add-button" onClick={openAddForm}>
             일정 추가
           </button>
-
-          <div className="panel-backup-actions" aria-label="백업 및 복구">
-            <button type="button" className="panel-utility-button" onClick={handleExportBackup}>
-              백업 내보내기
-            </button>
-            <button type="button" className="panel-utility-button" onClick={handleClickRestoreButton}>
-              백업 가져오기
-            </button>
-            <input
-              ref={restoreInputRef}
-              type="file"
-              accept="application/json,.json"
-              className="sr-only-file-input"
-              onChange={handleImportBackup}
-              aria-label="백업 파일 선택"
-              tabIndex={-1}
-            />
-          </div>
 
           {isAddFormOpen && (
             <form className="add-event-form" onSubmit={handleAddEvent}>
@@ -1576,6 +1597,18 @@ function App() {
             <div className="confirm-modal-actions">
               <button type="button" className="form-secondary" onClick={() => setPendingDeleteCategoryId(null)}>취소</button>
               <button type="button" className="confirm-modal-danger" onClick={confirmDeleteCategory}>삭제</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {pendingImportData && (
+        <div className="confirm-modal-overlay" role="presentation" onClick={closeImportConfirmModal}>
+          <div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="import-modal-title" aria-describedby="import-modal-description" onClick={(e) => e.stopPropagation()}>
+            <h2 id="import-modal-title" className="confirm-modal-title">백업 가져오기</h2>
+            <p id="import-modal-description" className="confirm-modal-description">백업을 가져오면 현재 일정, 카테고리, 캘린더, 루틴, 루틴 완료 상태가 백업 내용으로 덮어써집니다. 계속할까요?</p>
+            <div className="confirm-modal-actions">
+              <button type="button" className="form-secondary" onClick={closeImportConfirmModal}>취소</button>
+              <button type="button" className="confirm-modal-danger" onClick={confirmImportBackup}>가져오기</button>
             </div>
           </div>
         </div>

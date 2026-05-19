@@ -960,6 +960,12 @@ button:active {
   gap: 8px;
 }
 
+.data-management-section {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
 .panel-utility-button {
   min-height: 42px;
   border-radius: 10px;
@@ -1095,6 +1101,13 @@ button:active {
   margin: 4px 0 6px;
   color: #334155;
   font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.backup-feedback {
+  margin: 8px 2px 0;
+  color: #475569;
+  font-size: 0.8rem;
   line-height: 1.45;
 }
 
